@@ -1,0 +1,16 @@
+[package]
+name = "tamanoir-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+xtask = { path = "../xtask" }
+which = { workspace = true }
+
+[[bin]]
+name = "tamanoir"
+path = "src/main.rs"
