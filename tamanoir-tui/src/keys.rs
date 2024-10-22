@@ -57,6 +57,7 @@ pub static KEYS: phf::Map<u32, &'static str> = phf_map! {
     54u32 => "Right󰘶 ",
     55u32 => "*",
     56u32 => "LeftAlt",
-    57u32 => "Space",
+    57u32 => "󱁐 ",
     58u32 => "CapsLock",
+    69u32 => "NumLock",
 };
