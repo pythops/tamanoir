@@ -90,7 +90,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 info!(
                     &ctx,
                     "{}:{} -> {}:{}",
-                    Ipv4Addr::from_bits(target_ip),
+                    Ipv4Addr::from_bits(addr),
                     53,
                     Ipv4Addr::from_bits(u32::from_be(
                         (ctx.load::<Ipv4Hdr>(EthHdr::LEN).unwrap()).dst_addr,
