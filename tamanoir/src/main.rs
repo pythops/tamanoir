@@ -5,7 +5,7 @@ use aya::{
     EbpfLoader,
 };
 use clap::Parser;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use tokio::signal;
 
 #[derive(Debug, Parser)]
