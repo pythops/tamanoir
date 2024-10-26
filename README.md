@@ -1,5 +1,1 @@
 # tamanoir
-
-## ⚖️ License
-
-GPLv3

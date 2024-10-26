@@ -6,10 +6,11 @@ edition = "2021"
 [dependencies]
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
+network-types = "*"
 
 [build-dependencies]
-xtask = { path = "../xtask" }
 which = { workspace = true }
+xtask = { path = "../xtask" }
 
 [[bin]]
 name = "tamanoir"

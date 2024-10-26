@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["xtask", "tamanoir-tui", "tamanoir-ebpf"]
+members = ["xtask", "tamanoir", "tamanoir-ebpf"]
+default-members = ["xtask", "tamanoir"]
 
 [workspace.dependencies]
 aya = { version = "0.13", default-features = false }
