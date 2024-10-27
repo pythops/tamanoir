@@ -13,3 +13,5 @@ pub const IP_DEST_ADDR_OFFSET: usize = IP_OFFSET + 16;
 pub const UDP_OFFSET: usize = IP_OFFSET + Ipv4Hdr::LEN;
 pub const UDP_DEST_PORT_OFFSET: usize = UDP_OFFSET + 2;
 pub const UDP_CSUM_OFFSET: usize = UDP_OFFSET + 6;
+
+pub const BPF_ADJ_ROOM_NET: u32 = 0;
