@@ -16,8 +16,8 @@ use network_types::{
 };
 
 use crate::common::{
-    BPF_ADJ_ROOM_NET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, TARGET_IP, UDP_CSUM_OFFSET,
-    UDP_DEST_PORT_OFFSET, UDP_OFFSET,
+    BPF_ADJ_ROOM_NET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_OFFSET, IP_TOT_LEN_OFFST,
+    TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
@@ -35,7 +35,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
     let hijack_ip: u32 = unsafe { core::ptr::read_volatile(&HIJACK_IP) };
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
     if let EtherType::Ipv4 = ethhdr.ether_type {
-        let mut header = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
+        let header = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
         let addr = header.dst_addr;
         if let IpProto::Udp = header.proto {
             if addr == hijack_ip {
@@ -65,21 +65,14 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
 
                 let offset = fixed_size_added_keys.len();
                 let old_len_l4 = u16::from_be(udp_hdr.len);
-                let old_len_l3_plus_l4 = u16::from_be(header.tot_len);
 
                 udp_hdr.len = (old_len_l4 + offset as u16).to_be();
-                header.tot_len = (old_len_l3_plus_l4 + offset as u16).to_be();
+
                 info!(
                     &ctx,
                     "l4 len {} => {}",
                     old_len_l4,
                     u16::from_be(udp_hdr.len)
-                );
-                info!(
-                    &ctx,
-                    "total len {} => {}",
-                    old_len_l3_plus_l4,
-                    u16::from_be(header.tot_len)
                 );
 
                 // make room
@@ -94,6 +87,22 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                         UDP_OFFSET as u32,
                         &udp_hdr as *const UdpHdr as *const c_void,
                         8,
+                        2,
+                    )
+                } < 0
+                {
+                    error!(&ctx, "error shifting udp header ");
+                }
+                //updating ip header
+                let old_len_l3_plus_l4 = u16::from_be(header.tot_len);
+                let new_tot_len = (old_len_l3_plus_l4 + offset as u16).to_be();
+
+                if unsafe {
+                    bpf_skb_store_bytes(
+                        skb.skb,
+                        IP_TOT_LEN_OFFST as u32,
+                        &new_tot_len as *const u16 as *const c_void,
+                        2,
                         2,
                     )
                 } < 0
@@ -159,15 +168,23 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
                 );
 
-                //l3 checksums aready updated
-                // if let Err(err) = (*skb).l3_csum_replace(
-                //     IP_CSUM_OFFSET,
-                //     header.dst_addr as u64,
-                //     target_ip.to_be() as u64,
-                //     4,
-                // ) {
-                //     error!(&ctx, "error: {}", err);
-                // }
+                // whatever bpf_skb_store_bytes are , you need to recompute l3 csum
+                if let Err(err) = (*skb).l3_csum_replace(
+                    IP_CSUM_OFFSET,
+                    header.dst_addr as u64,
+                    target_ip.to_be() as u64,
+                    4,
+                ) {
+                    error!(&ctx, "error: {}", err);
+                }
+                if let Err(err) = (*skb).l3_csum_replace(
+                    IP_CSUM_OFFSET,
+                    old_len_l3_plus_l4 as u64,
+                    new_tot_len as u64,
+                    2,
+                ) {
+                    error!(&ctx, "error: {}", err);
+                }
 
                 // recompute l4 checksums
                 // dst addr part for udphdr

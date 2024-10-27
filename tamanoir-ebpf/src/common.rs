@@ -7,6 +7,7 @@ pub static TARGET_IP: u32 = 0;
 pub static HIJACK_IP: u32 = 0;
 
 pub const IP_OFFSET: usize = EthHdr::LEN;
+pub const IP_TOT_LEN_OFFST: usize = IP_OFFSET + 2;
 pub const IP_CSUM_OFFSET: usize = IP_OFFSET + 10;
 pub const IP_SRC_ADDR_OFFSET: usize = IP_OFFSET + 12;
 pub const IP_DEST_ADDR_OFFSET: usize = IP_OFFSET + 16;
