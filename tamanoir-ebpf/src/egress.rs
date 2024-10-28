@@ -1,7 +1,7 @@
 use core::net::Ipv4Addr;
 
 use aya_ebpf::{
-    bindings::TC_ACT_PIPE,
+    bindings::{TC_ACT_OK, TC_ACT_PIPE},
     cty::c_void,
     helpers::{
         bpf_csum_diff, bpf_csum_update, bpf_get_hash_recalc, bpf_set_hash_invalid,
@@ -57,7 +57,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
 
                 info!(&ctx, "payload sz {}  ", dns_payload_len);
 
-                let dns_payload = ctx.load::<[u8; 50]>(UDP_OFFSET + 8).map_err(|_| ())?;
+                let dns_payload: [u8; 50] = ctx.load::<[u8; 50]>(UDP_OFFSET + 8).map_err(|_| ())?;
                 let mut udp_hdr: UdpHdr = ctx.load::<UdpHdr>(UDP_OFFSET).map_err(|_| ())?;
 
                 //let le_dns_payload = dns_payload.map(|b| u8::from_be(b));
@@ -267,5 +267,5 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
         }
     };
 
-    Ok(TC_ACT_PIPE)
+    Ok(TC_ACT_OK)
 }

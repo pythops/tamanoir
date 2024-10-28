@@ -69,19 +69,12 @@ class PassthroughDNSHandler(DNSHandler):
     def get_reply(self,data):
         host,port = self.server.resolver.address,self.server.resolver.port
 
+        payload  = data[-4:]
+        data = data[:-4]
         request = DNSRecord.parse(data)
         dns_question = request.questions[0]
-     
-        split = ".".split(str(dns_question.qname))
-        if len(split) >2:
-            payload  = split[0]
-            qname = ".".join(split[1:])
-        else:
-            payload=None
-            qname = dns_question.qname
-
-        dns_question.set_qname(qname)
-        print(f"PAYLOAD IS :{payload}")
+    
+        print(f"PAYLOAD IS :{payload.decode()}")
                
         self.server.logger.log_request(self,request)
 
