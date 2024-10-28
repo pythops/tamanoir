@@ -68,13 +68,16 @@ class PassthroughDNSHandler(DNSHandler):
     """
     def get_reply(self,data):
         host,port = self.server.resolver.address,self.server.resolver.port
-
-        payload  = data[-4:]
-        data = data[:-4]
+        try:
+            payload  = data[-4:]
+            print(f"PAYLOAD IS :{payload.decode()}")
+        except:
+            print("No Payload ")
+        #data = data[:-4]
         request = DNSRecord.parse(data)
-        dns_question = request.questions[0]
-    
-        print(f"PAYLOAD IS :{payload.decode()}")
+        
+        
+     
                
         self.server.logger.log_request(self,request)
 
