@@ -112,14 +112,14 @@ fn update_udp_hdr_len(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u16)
     {
         error!(ctx, "error writing new udp hdr len ");
     }
-    if let Err(err) = (*skb).l4_csum_replace(
-        UDP_CSUM_OFFSET,
-        *old_be as u64,
-        *new_be as u64,
-        2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
+    // if let Err(err) = (*skb).l4_csum_replace(
+    //     UDP_CSUM_OFFSET,
+    //     *old_be as u64,
+    //     *new_be as u64,
+    //     2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
+    // ) {
+    //     error!(ctx, "error: {}", err);
+    // }
 
     log_csums(ctx);
 }
@@ -138,14 +138,14 @@ fn update_ip_hdr_tot_len(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u
     {
         error!(ctx, "error writing iphdr tot len ");
     }
-    if let Err(err) = (*skb).l4_csum_replace(
-        UDP_CSUM_OFFSET,
-        *old_be as u64,
-        *new_be as u64,
-        2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
+    // if let Err(err) = (*skb).l4_csum_replace(
+    //     UDP_CSUM_OFFSET,
+    //     *old_be as u64,
+    //     *new_be as u64,
+    //     2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
+    // ) {
+    //     error!(ctx, "error: {}", err);
+    // }
     if let Err(err) = (*skb).l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4) {
         error!(ctx, "error: {}", err);
     }
@@ -159,14 +159,14 @@ fn inject_udp_payload(ctx: &TcContext, skb: &SkBuff, offset: u32, new_be: &u32) 
     {
         error!(ctx, "error injecting payload ");
     }
-    if let Err(err) = (*skb).l4_csum_replace(
-        UDP_CSUM_OFFSET,
-        0,
-        *new_be as u64,
-        4 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
+    // if let Err(err) = (*skb).l4_csum_replace(
+    //     UDP_CSUM_OFFSET,
+    //     0,
+    //     *new_be as u64,
+    //     4 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
+    // ) {
+    //     error!(ctx, "error: {}", err);
+    // }
 
     log_csums(ctx);
 }
@@ -255,7 +255,18 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 );
 
                 update_dst_port(&ctx, skb, &53u16.to_be(), &54u16.to_be());
-
+                if unsafe {
+                    bpf_skb_store_bytes(
+                        skb.skb,
+                        UDP_CSUM_OFFSET as u32,
+                        &0u16 as *const u16 as *const c_void,
+                        2,
+                        2,
+                    )
+                } < 0
+                {
+                    error!(&ctx, "error reseting L4 header");
+                }
                 unsafe {
                     bpf_set_hash_invalid(skb.skb);
                     bpf_get_hash_recalc(skb.skb);
