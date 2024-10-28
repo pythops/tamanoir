@@ -19,8 +19,9 @@ use network_types::{
 };
 
 use crate::common::{
-    BPF_ADJ_ROOM_NET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP,
-    UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
+    BPF_ADJ_ROOM_NET, BPF_F_MARK_ENFORCE, BPF_F_MARK_MANGLED_0, BPF_F_PSEUDO_HDR, HIJACK_IP,
+    IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP, UDP_CSUM_OFFSET,
+    UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
@@ -211,7 +212,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     UDP_CSUM_OFFSET,
                     header.dst_addr as u64,
                     target_ip.to_be() as u64,
-                    20,
+                    4 + BPF_F_PSEUDO_HDR + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
@@ -222,7 +223,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     UDP_CSUM_OFFSET,
                     old_len_l4.to_be() as u64,
                     udp_hdr.len as u64,
-                    20,
+                    2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
@@ -233,16 +234,8 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     UDP_CSUM_OFFSET,
                     53u16.to_be() as u64,
                     54u16.to_be() as u64,
-                    20,
+                    2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
                 ) {
-                    error!(&ctx, "error: {}", err);
-                }
-                log_csums(&ctx);
-
-                // added bytes
-                if let Err(err) =
-                    (*skb).l4_csum_replace(UDP_CSUM_OFFSET, 0, keys_as_u32.to_be() as u64, 20)
-                {
                     error!(&ctx, "error: {}", err);
                 }
                 log_csums(&ctx);

@@ -16,3 +16,7 @@ pub const UDP_DEST_PORT_OFFSET: usize = UDP_OFFSET + 2;
 pub const UDP_CSUM_OFFSET: usize = UDP_OFFSET + 6;
 
 pub const BPF_ADJ_ROOM_NET: u32 = 0;
+
+pub const BPF_F_PSEUDO_HDR: u64 = 16;
+pub const BPF_F_MARK_MANGLED_0: u64 = 32;
+pub const BPF_F_MARK_ENFORCE: u64 = 64;
