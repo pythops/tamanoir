@@ -3,7 +3,10 @@ use core::net::Ipv4Addr;
 use aya_ebpf::{
     bindings::TC_ACT_PIPE,
     cty::c_void,
-    helpers::{bpf_csum_diff, bpf_csum_update, bpf_skb_store_bytes},
+    helpers::{
+        bpf_csum_diff, bpf_csum_update, bpf_get_hash_recalc, bpf_set_hash_invalid,
+        bpf_skb_store_bytes,
+    },
     macros::classifier,
     programs::TcContext,
 };
@@ -16,11 +19,20 @@ use network_types::{
 };
 
 use crate::common::{
-    BPF_ADJ_ROOM_NET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_OFFSET, IP_TOT_LEN_OFFST,
-    TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
+    BPF_ADJ_ROOM_NET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP,
+    UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
+
+fn log_csums(ctx: &TcContext) {
+    info!(
+        ctx,
+        "ipcsum: {}  udpcsum: {}",
+        u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
+        u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
+    );
+}
 
 #[classifier]
 pub fn tamanoir_egress(ctx: TcContext) -> i32 {
@@ -82,21 +94,22 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
 
                 // L3 UPDATES
                 // update tot_len
-                let old_len_l3_plus_l4 = u16::from_be(header.tot_len);
-                let new_tot_len = (old_len_l3_plus_l4 + offset as u16).to_be();
+                let old_tot_len = u16::from_be(header.tot_len);
+                let new_tot_len = (old_tot_len + offset as u16).to_be();
 
                 if unsafe {
                     bpf_skb_store_bytes(
                         skb.skb,
-                        IP_TOT_LEN_OFFST as u32,
+                        IP_TOT_LEN_OFFSET as u32,
                         &new_tot_len as *const u16 as *const c_void,
                         2,
-                        2,
+                        0,
                     )
                 } < 0
                 {
                     error!(&ctx, "error shifting udp header ");
                 }
+
                 // update dst addr
                 if unsafe {
                     bpf_skb_store_bytes(
@@ -104,7 +117,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                         IP_DEST_ADDR_OFFSET as u32,
                         target_dns_mut as *const c_void,
                         4,
-                        2,
+                        0,
                     )
                 } < 0
                 {
@@ -119,7 +132,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                         UDP_OFFSET as u32,
                         &udp_hdr as *const UdpHdr as *const c_void,
                         8,
-                        2,
+                        0,
                     )
                 } < 0
                 {
@@ -132,7 +145,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                         UDP_OFFSET as u32 + 8,
                         &dns_payload as *const [u8; 50] as *const c_void,
                         50,
-                        2,
+                        0,
                     )
                 } < 0
                 {
@@ -145,7 +158,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                         UDP_OFFSET as u32 + 8 + 50,
                         &fixed_size_added_keys as *const [u8; 4] as *const c_void,
                         4,
-                        2,
+                        0,
                     )
                 } < 0
                 {
@@ -160,18 +173,12 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                         UDP_DEST_PORT_OFFSET as u32,
                         target_por_mut as *const c_void,
                         2,
-                        2,
+                        0,
                     )
                 } < 0
                 {
                     error!(&ctx, "error writing new address ");
                 }
-                info!(
-                    &ctx,
-                    "ipcsum: {}  udpcsum: {}",
-                    u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
-                    u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
-                );
 
                 // RECOMPUTE CSUMs
 
@@ -185,15 +192,18 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
+                log_csums(&ctx);
+
                 // tot_len
                 if let Err(err) = (*skb).l3_csum_replace(
                     IP_CSUM_OFFSET,
-                    old_len_l3_plus_l4 as u64,
+                    old_tot_len.to_be() as u64,
                     new_tot_len as u64,
                     2,
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
+                log_csums(&ctx);
 
                 // recompute l4 checksums
                 // dst addr  (from ip header)
@@ -205,6 +215,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
+                log_csums(&ctx);
 
                 // udp len part
                 if let Err(err) = (*skb).l4_csum_replace(
@@ -215,6 +226,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
+                log_csums(&ctx);
 
                 // dst port
                 if let Err(err) = (*skb).l4_csum_replace(
@@ -225,6 +237,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
+                log_csums(&ctx);
 
                 // added bytes
                 if let Err(err) =
@@ -232,13 +245,13 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 {
                     error!(&ctx, "error: {}", err);
                 }
+                log_csums(&ctx);
 
-                info!(
-                    &ctx,
-                    "=> ipcsum: {}  udpcsum: {}",
-                    u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
-                    u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
-                );
+                // hash recompute
+                unsafe {
+                    bpf_set_hash_invalid(skb.skb);
+                    bpf_get_hash_recalc(skb.skb);
+                }
 
                 info!(
                     &ctx,
