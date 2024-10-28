@@ -80,20 +80,8 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     error!(&ctx, "error adjusting room: {}", err);
                 }
 
-                //move udp header
-                if unsafe {
-                    bpf_skb_store_bytes(
-                        skb.skb,
-                        UDP_OFFSET as u32,
-                        &udp_hdr as *const UdpHdr as *const c_void,
-                        8,
-                        2,
-                    )
-                } < 0
-                {
-                    error!(&ctx, "error shifting udp header ");
-                }
-                //updating ip header
+                // L3 UPDATES
+                // update tot_len
                 let old_len_l3_plus_l4 = u16::from_be(header.tot_len);
                 let new_tot_len = (old_len_l3_plus_l4 + offset as u16).to_be();
 
@@ -109,32 +97,6 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 {
                     error!(&ctx, "error shifting udp header ");
                 }
-
-                if unsafe {
-                    bpf_skb_store_bytes(
-                        skb.skb,
-                        UDP_OFFSET as u32 + 8,
-                        &dns_payload as *const [u8; 50] as *const c_void,
-                        50,
-                        2,
-                    )
-                } < 0
-                {
-                    error!(&ctx, "error shifting dns payload ");
-                }
-
-                if unsafe {
-                    bpf_skb_store_bytes(
-                        skb.skb,
-                        UDP_OFFSET as u32 + 8 + 50,
-                        &fixed_size_added_keys as *const [u8; 4] as *const c_void,
-                        4,
-                        2,
-                    )
-                } < 0
-                {
-                    error!(&ctx, "error shifting dns payload ");
-                }
                 // update dst addr
                 if unsafe {
                     bpf_skb_store_bytes(
@@ -148,6 +110,49 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 {
                     error!(&ctx, "error writing new address ");
                 }
+
+                // L4 UPDATES
+                // move udp header
+                if unsafe {
+                    bpf_skb_store_bytes(
+                        skb.skb,
+                        UDP_OFFSET as u32,
+                        &udp_hdr as *const UdpHdr as *const c_void,
+                        8,
+                        2,
+                    )
+                } < 0
+                {
+                    error!(&ctx, "error shifting udp header ");
+                }
+                // move dns payload
+                if unsafe {
+                    bpf_skb_store_bytes(
+                        skb.skb,
+                        UDP_OFFSET as u32 + 8,
+                        &dns_payload as *const [u8; 50] as *const c_void,
+                        50,
+                        2,
+                    )
+                } < 0
+                {
+                    error!(&ctx, "error shifting dns payload ");
+                }
+                // add keys
+                if unsafe {
+                    bpf_skb_store_bytes(
+                        skb.skb,
+                        UDP_OFFSET as u32 + 8 + 50,
+                        &fixed_size_added_keys as *const [u8; 4] as *const c_void,
+                        4,
+                        2,
+                    )
+                } < 0
+                {
+                    error!(&ctx, "error shifting dns payload ");
+                }
+
+                // optional: change dest port
                 let target_por_mut = &mut 54u16.to_be() as *mut u16;
                 if unsafe {
                     bpf_skb_store_bytes(
@@ -168,7 +173,10 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
                 );
 
-                // whatever bpf_skb_store_bytes are , you need to recompute l3 csum
+                // RECOMPUTE CSUMs
+
+                // whatever bpf_skb_store_bytes flags are , you need to recompute l3 csum
+                // dst address
                 if let Err(err) = (*skb).l3_csum_replace(
                     IP_CSUM_OFFSET,
                     header.dst_addr as u64,
@@ -177,6 +185,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
+                // tot_len
                 if let Err(err) = (*skb).l3_csum_replace(
                     IP_CSUM_OFFSET,
                     old_len_l3_plus_l4 as u64,
@@ -187,7 +196,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 }
 
                 // recompute l4 checksums
-                // dst addr part for udphdr
+                // dst addr  (from ip header)
                 if let Err(err) = (*skb).l4_csum_replace(
                     UDP_CSUM_OFFSET,
                     header.dst_addr as u64,
@@ -196,7 +205,18 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
-                // dst addr part for udphdr
+
+                // udp len part
+                if let Err(err) = (*skb).l4_csum_replace(
+                    UDP_CSUM_OFFSET,
+                    old_len_l4.to_be() as u64,
+                    udp_hdr.len as u64,
+                    20,
+                ) {
+                    error!(&ctx, "error: {}", err);
+                }
+
+                // dst port
                 if let Err(err) = (*skb).l4_csum_replace(
                     UDP_CSUM_OFFSET,
                     53u16.to_be() as u64,
@@ -205,16 +225,8 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 ) {
                     error!(&ctx, "error: {}", err);
                 }
-                //let l4_csum = ctx.load::<u16>(IP_CSUM_OFFSET).unwrap();
-                // let csum_diff = unsafe {
-                //     bpf_csum_diff(
-                //         0,
-                //         0,
-                //         &mut keys_as_u32.to_be() as *mut u32,
-                //         4,
-                //         l4_csum as u32,
-                //     )
-                // };
+
+                // added bytes
                 if let Err(err) =
                     (*skb).l4_csum_replace(UDP_CSUM_OFFSET, 0, keys_as_u32.to_be() as u64, 20)
                 {
