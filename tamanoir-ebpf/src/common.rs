@@ -24,25 +24,8 @@ pub const DNS_QUERY_OFFSET: usize = UDP_OFFSET + 8;
 pub const BPF_ADJ_ROOM_NET: u32 = 0;
 
 pub const BPF_F_PSEUDO_HDR: u64 = 16;
-pub const BPF_F_MARK_MANGLED_0: u64 = 32;
 pub const BPF_F_MARK_ENFORCE: u64 = 64;
 
-//  fn ones_complement_sum(data: &[u8]) -> u32 {
-//         let mut sum = 0u32;
-//         let mut chunks = data.chunks_exact(2);
-
-//         for chunk in chunks.by_ref() {
-//             let word = u16::from_be_bytes([chunk[0], chunk[1]]) as u32;
-//             sum = sum.wrapping_add(word);
-//         }
-
-//         // Handle any remaining byte if the slice length is odd
-//         if let Some(&remaining_byte) = chunks.remainder().get(0) {
-//             sum = sum.wrapping_add((remaining_byte as u32) << 8);
-//         }
-
-//         sum
-//     }
 pub fn calculate_udp_checksum(src_ip: u32, dst_ip: u32, udp_header: &[u8], payload: &[u8]) -> u16 {
     // Pseudo header array (12 bytes)
     let src_ip_bytes = src_ip.to_be_bytes();
