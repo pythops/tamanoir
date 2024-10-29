@@ -5,7 +5,7 @@ use aya_ebpf::{
 use aya_log_ebpf::{error, info};
 use network_types::{
     eth::{EthHdr, EtherType},
-    ip::Ipv4Hdr,
+    ip::{IpProto, Ipv4Hdr},
 };
 
 use crate::common::{HIJACK_IP, IP_CSUM_OFFSET, IP_SRC_ADDR_OFFSET, TARGET_IP, UDP_CSUM_OFFSET};
@@ -26,45 +26,47 @@ fn tc_process_ingress(ctx: TcContext) -> Result<i32, ()> {
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
     if let EtherType::Ipv4 = ethhdr.ether_type {
         let header = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
-        let src_addr = u32::from_be(header.src_addr);
-        if src_addr == target_ip {
-            let hijack_ip_mut = &mut hijack_ip.to_be() as *mut u32;
-            info!(&ctx, "\n-----\nNew intercepted request:\n-----");
-            let skb = &ctx.skb;
+        if let IpProto::Udp = header.proto {
+            let src_addr = u32::from_be(header.src_addr);
+            if src_addr == target_ip {
+                let hijack_ip_mut = &mut hijack_ip.to_be() as *mut u32;
+                info!(&ctx, "\n-----\nNew intercepted request:\n-----");
+                let skb = &ctx.skb;
 
-            // recompute l3 and l4 checksums
-            if let Err(err) = (*skb).l3_csum_replace(
-                IP_CSUM_OFFSET,
-                header.src_addr as u64,
-                hijack_ip.to_be() as u64,
-                4,
-            ) {
-                error!(&ctx, "error: {}", err);
-            }
-            // src addr part for udphdr
-            if let Err(err) = (*skb).l4_csum_replace(
-                UDP_CSUM_OFFSET,
-                header.src_addr as u64,
-                hijack_ip.to_be() as u64,
-                20,
-            ) {
-                error!(&ctx, "error: {}", err);
-            }
-
-            if unsafe {
-                bpf_skb_store_bytes(
-                    skb.skb,
-                    IP_SRC_ADDR_OFFSET as u32,
-                    hijack_ip_mut as *const c_void,
+                // recompute l3 and l4 checksums
+                if let Err(err) = (*skb).l3_csum_replace(
+                    IP_CSUM_OFFSET,
+                    header.src_addr as u64,
+                    hijack_ip.to_be() as u64,
                     4,
-                    2,
-                )
-            } < 0
-            {
-                error!(&ctx, "error writing new address ");
-            }
+                ) {
+                    error!(&ctx, "error: {}", err);
+                }
+                // src addr part for udphdr
+                if let Err(err) = (*skb).l4_csum_replace(
+                    UDP_CSUM_OFFSET,
+                    header.src_addr as u64,
+                    hijack_ip.to_be() as u64,
+                    20,
+                ) {
+                    error!(&ctx, "error: {}", err);
+                }
+
+                if unsafe {
+                    bpf_skb_store_bytes(
+                        skb.skb,
+                        IP_SRC_ADDR_OFFSET as u32,
+                        hijack_ip_mut as *const c_void,
+                        4,
+                        2,
+                    )
+                } < 0
+                {
+                    error!(&ctx, "error writing new address ");
+                }
+            };
         };
-    };
+    }
 
     Ok(TC_ACT_PIPE)
 }
