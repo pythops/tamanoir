@@ -160,7 +160,7 @@ fn inject_udp_payload(ctx: &TcContext, skb: &SkBuff, offset: u32, new_be: &u32) 
     log_csums(ctx);
 }
 
-const DNS_PAYLOAD_SZ: usize = 38;
+const DNS_PAYLOAD_SZ: usize = 50;
 
 fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
     let target_ip: u32 = unsafe { core::ptr::read_volatile(&TARGET_IP) };
