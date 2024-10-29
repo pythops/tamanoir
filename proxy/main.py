@@ -73,13 +73,14 @@ class PassthroughDNSHandler(DNSHandler):
             print(f"PAYLOAD IS :{payload.decode()}")
         except:
             print("No Payload ")
-        #data = data[:-4]
+        if len(data)==54:
+            data = data[:-4]
+    
         request = DNSRecord.parse(data)
         
         
-     
-               
         self.server.logger.log_request(self,request)
+  
 
    
         response = send_udp(data,host,port)

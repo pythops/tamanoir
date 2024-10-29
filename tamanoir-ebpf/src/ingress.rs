@@ -29,15 +29,8 @@ fn tc_process_ingress(ctx: TcContext) -> Result<i32, ()> {
         let src_addr = u32::from_be(header.src_addr);
         if src_addr == target_ip {
             let hijack_ip_mut = &mut hijack_ip.to_be() as *mut u32;
-
+            info!(&ctx, "\n-----\nNew intercepted request:\n-----");
             let skb = &ctx.skb;
-
-            // info!(
-            //     &ctx,
-            //     "ipcsum: {}  udpcsum: {}",
-            //     u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
-            //     u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
-            // );
 
             // recompute l3 and l4 checksums
             if let Err(err) = (*skb).l3_csum_replace(
@@ -57,13 +50,6 @@ fn tc_process_ingress(ctx: TcContext) -> Result<i32, ()> {
             ) {
                 error!(&ctx, "error: {}", err);
             }
-
-            // info!(
-            //     &ctx,
-            //     "=> ipcsum: {}  udpcsum: {}",
-            //     u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
-            //     u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
-            // );
 
             if unsafe {
                 bpf_skb_store_bytes(
