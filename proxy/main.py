@@ -73,11 +73,12 @@ class PassthroughDNSHandler(DNSHandler):
             print(f"PAYLOAD IS :{payload.decode()}")
         except:
             print("No Payload ")
-        if len(data)==54:
-            data = data[:-4]
-    
-        request = DNSRecord.parse(data)
-        
+       
+        data = bytearray(data[:-4])
+        data[2:4] = bytes.fromhex("0120")
+
+        request = DNSRecord.parse(bytes(data))
+      
         
         self.server.logger.log_request(self,request)
   
