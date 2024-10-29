@@ -1,4 +1,8 @@
-use network_types::{eth::EthHdr, ip::Ipv4Hdr};
+use core::slice;
+
+use aya_ebpf::programs::TcContext;
+use aya_log_ebpf::info;
+use network_types::{eth::EthHdr, ip::Ipv4Hdr, udp::UdpHdr};
 
 #[no_mangle]
 pub static TARGET_IP: u32 = 0;
@@ -23,33 +27,27 @@ pub const BPF_F_PSEUDO_HDR: u64 = 16;
 pub const BPF_F_MARK_MANGLED_0: u64 = 32;
 pub const BPF_F_MARK_ENFORCE: u64 = 64;
 
-// Helper function to calculate a one's complement sum over a byte slice
-fn ones_complement_sum(data: &[u8]) -> u32 {
-    let mut sum = 0u32;
-    let mut chunks = data.chunks_exact(2);
+//  fn ones_complement_sum(data: &[u8]) -> u32 {
+//         let mut sum = 0u32;
+//         let mut chunks = data.chunks_exact(2);
 
-    for chunk in chunks.by_ref() {
-        let word = u16::from_be_bytes([chunk[0], chunk[1]]) as u32;
-        sum = sum.wrapping_add(word);
-    }
+//         for chunk in chunks.by_ref() {
+//             let word = u16::from_be_bytes([chunk[0], chunk[1]]) as u32;
+//             sum = sum.wrapping_add(word);
+//         }
 
-    // Handle any remaining byte if the slice length is odd
-    if let Some(&remaining_byte) = chunks.remainder().get(0) {
-        sum = sum.wrapping_add((remaining_byte as u32) << 8);
-    }
+//         // Handle any remaining byte if the slice length is odd
+//         if let Some(&remaining_byte) = chunks.remainder().get(0) {
+//             sum = sum.wrapping_add((remaining_byte as u32) << 8);
+//         }
 
-    sum
-}
-
-pub fn calculate_udp_checksum(
-    src_ip: u32, //[u8; 4],
-    dst_ip: u32, //[u8; 4],
-    udp_header: &[u8],
-    payload: &[u8],
-) -> u16 {
+//         sum
+//     }
+pub fn calculate_udp_checksum(src_ip: u32, dst_ip: u32, udp_header: &[u8], payload: &[u8]) -> u16 {
     // Pseudo header array (12 bytes)
     let src_ip_bytes = src_ip.to_be_bytes();
     let dst_ip_bytes = dst_ip.to_be_bytes();
+
     let pseudo_header = [
         src_ip_bytes[0],
         src_ip_bytes[1],
@@ -66,14 +64,26 @@ pub fn calculate_udp_checksum(
     ];
 
     // 1. Calculate the sum of pseudo header, UDP header, and payload
-    let mut sum = ones_complement_sum(&pseudo_header);
-    sum = sum.wrapping_add(ones_complement_sum(udp_header));
-    sum = sum.wrapping_add(ones_complement_sum(payload));
 
-    // 2. Fold 32-bit sum to 16-bit and apply one's complement
-    while (sum >> 16) != 0 {
-        sum = (sum & 0xFFFF) + (sum >> 16);
+    let mut sum = 0u32;
+
+    for bytes_slice in [&pseudo_header, payload, udp_header] {
+        let len = bytes_slice.len();
+        for i in 0..len / 2 {
+            sum = sum.wrapping_add(
+                u16::from_be_bytes([bytes_slice[2 * i], bytes_slice[2 * i + 1]]) as u32,
+            );
+        }
+        if len % 2 != 0 {
+            if let Some(byte) = bytes_slice.last() {
+                sum = sum.wrapping_add((*byte as u32) << 8);
+            }
+        }
     }
+
+    // // 2. Fold 32-bit sum to 16-bit and apply one's complement
+    let sum = (sum & 0xFFFF) + (sum >> 16);
+    let sum = (sum & 0xFFFF) + (sum >> 16);
 
     !(sum as u16) // One's complement
 }
