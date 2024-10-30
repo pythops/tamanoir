@@ -1,8 +1,4 @@
-use aya_ebpf::{
-    cty::c_void,
-    helpers::bpf_skb_store_bytes,
-    programs::{sk_buff::SkBuff, TcContext},
-};
+use aya_ebpf::programs::TcContext;
 use aya_log_ebpf::{error, info};
 use network_types::{eth::EthHdr, ip::Ipv4Hdr};
 
@@ -88,12 +84,11 @@ pub fn calculate_udp_checksum(src_ip: u32, dst_ip: u32, udp_header: &[u8], paylo
 }
 
 pub fn update_addr(
-    ctx: &TcContext,
-    skb: &SkBuff,
+    ctx: &mut TcContext,
     old_be: &u32,
     new_be: &u32,
     update_type: UpdateType,
-) {
+) -> Result<(), ()> {
     let offset = match update_type {
         UpdateType::Src => {
             info!(ctx, "updating src addr:");
@@ -104,41 +99,37 @@ pub fn update_addr(
             IP_DEST_ADDR_OFFSET
         }
     };
-
-    if unsafe {
-        bpf_skb_store_bytes(
-            skb.skb,
-            offset as u32,
-            new_be as *const u32 as *const c_void,
-            4,
-            0,
-        )
-    } < 0
-    {
+    ctx.store(offset, new_be, 0).map_err(|_| {
         error!(ctx, "error writing new address ");
-    }
-    if let Err(err) = (*skb).l4_csum_replace(
+        ()
+    })?;
+
+    ctx.l4_csum_replace(
         UDP_CSUM_OFFSET,
         *old_be as u64,
         *new_be as u64,
         4 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
+    )
+    .map_err(|_| {
+        error!(ctx, "error: l4_csum_replace");
+        ()
+    })?;
+    ctx.l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4)
+        .map_err(|_| {
+            error!(ctx, "error: l3_csum_replace");
+            ()
+        })?;
 
-    if let Err(err) = (*skb).l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4) {
-        error!(ctx, "error: {}", err);
-    }
     log_csums(ctx);
+    Ok(())
 }
 
 pub fn update_port(
-    ctx: &TcContext,
-    skb: &SkBuff,
+    ctx: &mut TcContext,
     old_be: &u16,
     new_be: &u16,
     update_type: UpdateType,
-) {
+) -> Result<(), ()> {
     let offset = match update_type {
         UpdateType::Src => {
             info!(ctx, "updating src port:");
@@ -149,26 +140,22 @@ pub fn update_port(
             UDP_DEST_PORT_OFFSET
         }
     };
-    if unsafe {
-        bpf_skb_store_bytes(
-            skb.skb,
-            offset as u32,
-            new_be as *const u16 as *const c_void,
-            2,
-            0,
-        )
-    } < 0
-    {
+    ctx.store(offset, new_be, 0).map_err(|_| {
         error!(ctx, "error writing new port ");
-    }
-    if let Err(err) = (*skb).l4_csum_replace(
+        ()
+    })?;
+
+    ctx.l4_csum_replace(
         UDP_CSUM_OFFSET,
         *old_be as u64,
         *new_be as u64,
         2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
+    )
+    .map_err(|_| {
+        error!(ctx, "error: l4_csum_replace");
+        ()
+    })?;
 
     log_csums(ctx);
+    Ok(())
 }

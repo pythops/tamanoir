@@ -1,6 +1,7 @@
 use std::{net::Ipv4Addr, str::FromStr};
 
 use aya::{
+    maps::HashMap,
     programs::{tc, KProbe, SchedClassifier, TcAttachType},
     EbpfLoader,
 };
@@ -19,7 +20,8 @@ struct Opt {
     #[clap(long, required = true)]
     hijack_ip: String,
 }
-
+const KEYS_PAYLOAD_LEN: usize = 4;
+const DNS_PAYLOAD_MAX_LEN: usize = 128;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
