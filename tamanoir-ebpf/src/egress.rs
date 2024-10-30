@@ -17,9 +17,9 @@ use network_types::{
 };
 
 use crate::common::{
-    calculate_udp_checksum, log_csums, update_addr, update_port, UpdateType, BPF_ADJ_ROOM_NET,
-    DNS_QUERY_OFFSET, HIJACK_IP, IP_CSUM_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP, UDP_CSUM_OFFSET,
-    UDP_DEST_PORT_OFFSET, UDP_LEN_OFFSET, UDP_OFFSET,
+    calculate_udp_checksum, inject_udp_payload, log_csums, update_addr, update_ip_hdr_tot_len,
+    update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET, DNS_QUERY_OFFSET, HIJACK_IP,
+    TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
@@ -32,43 +32,6 @@ pub struct Buf {
 
 #[map]
 pub static mut DNS_BUFFER: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
-
-fn update_udp_hdr_len(ctx: &mut TcContext, new_be: &u16) -> Result<(), ()> {
-    info!(ctx, "updating udphdr len:");
-    ctx.store(UDP_LEN_OFFSET, new_be, 0).map_err(|_| {
-        error!(ctx, "error writing new udp hdr len ");
-        ()
-    })?;
-    log_csums(ctx);
-    Ok(())
-}
-
-fn update_ip_hdr_tot_len(ctx: &mut TcContext, old_be: &u16, new_be: &u16) -> Result<(), ()> {
-    info!(ctx, "updating iphdr tot len:");
-    ctx.store(IP_TOT_LEN_OFFSET, new_be, 0).map_err(|_| {
-        error!(ctx, "error writing iphdr tot len ");
-        ()
-    })?;
-    ctx.l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4)
-        .map_err(|_| {
-            error!(ctx, "error: l3_csum_replace");
-            ()
-        })?;
-
-    log_csums(ctx);
-    Ok(())
-}
-
-fn inject_udp_payload(ctx: &mut TcContext, offset: usize, new_be: &u32) -> Result<(), ()> {
-    info!(ctx, "injecting udp payload:");
-    ctx.store(offset, new_be, 0).map_err(|_| {
-        error!(ctx, "error injecting payload ");
-        ()
-    })?;
-
-    log_csums(ctx);
-    Ok(())
-}
 
 #[classifier]
 pub fn tamanoir_egress(mut ctx: TcContext) -> i32 {

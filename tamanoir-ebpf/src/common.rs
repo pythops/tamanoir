@@ -159,3 +159,40 @@ pub fn update_port(
     log_csums(ctx);
     Ok(())
 }
+
+pub fn update_udp_hdr_len(ctx: &mut TcContext, new_be: &u16) -> Result<(), ()> {
+    info!(ctx, "updating udphdr len:");
+    ctx.store(UDP_LEN_OFFSET, new_be, 0).map_err(|_| {
+        error!(ctx, "error writing new udp hdr len ");
+        ()
+    })?;
+    log_csums(ctx);
+    Ok(())
+}
+
+pub fn update_ip_hdr_tot_len(ctx: &mut TcContext, old_be: &u16, new_be: &u16) -> Result<(), ()> {
+    info!(ctx, "updating iphdr tot len:");
+    ctx.store(IP_TOT_LEN_OFFSET, new_be, 0).map_err(|_| {
+        error!(ctx, "error writing iphdr tot len ");
+        ()
+    })?;
+    ctx.l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4)
+        .map_err(|_| {
+            error!(ctx, "error: l3_csum_replace");
+            ()
+        })?;
+
+    log_csums(ctx);
+    Ok(())
+}
+
+pub fn inject_udp_payload(ctx: &mut TcContext, offset: usize, new_be: &u32) -> Result<(), ()> {
+    info!(ctx, "injecting udp payload:");
+    ctx.store(offset, new_be, 0).map_err(|_| {
+        error!(ctx, "error injecting payload ");
+        ()
+    })?;
+
+    log_csums(ctx);
+    Ok(())
+}
