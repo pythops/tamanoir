@@ -1,8 +1,10 @@
-use core::slice;
-
-use aya_ebpf::programs::TcContext;
-use aya_log_ebpf::info;
-use network_types::{eth::EthHdr, ip::Ipv4Hdr, udp::UdpHdr};
+use aya_ebpf::{
+    cty::c_void,
+    helpers::bpf_skb_store_bytes,
+    programs::{sk_buff::SkBuff, TcContext},
+};
+use aya_log_ebpf::{error, info};
+use network_types::{eth::EthHdr, ip::Ipv4Hdr};
 
 #[no_mangle]
 pub static TARGET_IP: u32 = 0;
@@ -25,6 +27,20 @@ pub const BPF_ADJ_ROOM_NET: u32 = 0;
 
 pub const BPF_F_PSEUDO_HDR: u64 = 16;
 pub const BPF_F_MARK_ENFORCE: u64 = 64;
+
+pub fn log_csums(ctx: &TcContext) {
+    info!(
+        ctx,
+        "=> ipcsum: {}  udpcsum: {}",
+        u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
+        u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
+    );
+}
+
+pub enum UpdateType {
+    Src,
+    Dst,
+}
 
 pub fn calculate_udp_checksum(src_ip: u32, dst_ip: u32, udp_header: &[u8], payload: &[u8]) -> u16 {
     // Pseudo header array (12 bytes)
@@ -69,4 +85,90 @@ pub fn calculate_udp_checksum(src_ip: u32, dst_ip: u32, udp_header: &[u8], paylo
     let sum = (sum & 0xFFFF) + (sum >> 16);
 
     !(sum as u16) // One's complement
+}
+
+pub fn update_addr(
+    ctx: &TcContext,
+    skb: &SkBuff,
+    old_be: &u32,
+    new_be: &u32,
+    update_type: UpdateType,
+) {
+    let offset = match update_type {
+        UpdateType::Src => {
+            info!(ctx, "updating src addr:");
+            IP_SRC_ADDR_OFFSET
+        }
+        UpdateType::Dst => {
+            info!(ctx, "updating dst addr:");
+            IP_DEST_ADDR_OFFSET
+        }
+    };
+
+    if unsafe {
+        bpf_skb_store_bytes(
+            skb.skb,
+            offset as u32,
+            new_be as *const u32 as *const c_void,
+            4,
+            0,
+        )
+    } < 0
+    {
+        error!(ctx, "error writing new address ");
+    }
+    if let Err(err) = (*skb).l4_csum_replace(
+        UDP_CSUM_OFFSET,
+        *old_be as u64,
+        *new_be as u64,
+        4 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
+    ) {
+        error!(ctx, "error: {}", err);
+    }
+
+    if let Err(err) = (*skb).l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4) {
+        error!(ctx, "error: {}", err);
+    }
+    log_csums(ctx);
+}
+
+pub fn update_port(
+    ctx: &TcContext,
+    skb: &SkBuff,
+    old_be: &u16,
+    new_be: &u16,
+    update_type: UpdateType,
+) {
+    let offset = match update_type {
+        UpdateType::Src => {
+            info!(ctx, "updating src port:");
+            UDP_OFFSET
+        }
+        UpdateType::Dst => {
+            info!(ctx, "updating dst port:");
+            UDP_DEST_PORT_OFFSET
+        }
+    };
+    if unsafe {
+        bpf_skb_store_bytes(
+            skb.skb,
+            offset as u32,
+            new_be as *const u16 as *const c_void,
+            2,
+            0,
+        )
+    } < 0
+    {
+        error!(ctx, "error writing new port ");
+    }
+    if let Err(err) = (*skb).l4_csum_replace(
+        UDP_CSUM_OFFSET,
+        *old_be as u64,
+        *new_be as u64,
+        2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
+    ) {
+        error!(ctx, "error: {}", err);
+    }
+
+    log_csums(ctx);
 }

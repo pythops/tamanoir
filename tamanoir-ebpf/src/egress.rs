@@ -16,21 +16,12 @@ use network_types::{
 };
 
 use crate::common::{
-    calculate_udp_checksum, BPF_ADJ_ROOM_NET, BPF_F_MARK_ENFORCE, BPF_F_PSEUDO_HDR,
-    DNS_QUERY_OFFSET, HIJACK_IP, IP_CSUM_OFFSET, IP_DEST_ADDR_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP,
-    UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_LEN_OFFSET, UDP_OFFSET,
+    calculate_udp_checksum, log_csums, update_addr, update_port, UpdateType, BPF_ADJ_ROOM_NET,
+    DNS_QUERY_OFFSET, HIJACK_IP, IP_CSUM_OFFSET, IP_TOT_LEN_OFFSET, TARGET_IP, UDP_CSUM_OFFSET,
+    UDP_DEST_PORT_OFFSET, UDP_LEN_OFFSET, UDP_OFFSET,
 };
 
 // Maps
-
-fn log_csums(ctx: &TcContext) {
-    info!(
-        ctx,
-        "=> ipcsum: {}  udpcsum: {}",
-        u16::from_be(ctx.load::<u16>(IP_CSUM_OFFSET).unwrap()),
-        u16::from_be(ctx.load::<u16>(UDP_CSUM_OFFSET).unwrap())
-    );
-}
 
 #[classifier]
 pub fn tamanoir_egress(ctx: TcContext) -> i32 {
@@ -38,61 +29,6 @@ pub fn tamanoir_egress(ctx: TcContext) -> i32 {
         Ok(ret) => ret,
         Err(_) => TC_ACT_PIPE,
     }
-}
-
-fn update_dst_addr(ctx: &TcContext, skb: &SkBuff, old_be: &u32, new_be: &u32) {
-    info!(ctx, "updating dst addr:");
-    if unsafe {
-        bpf_skb_store_bytes(
-            skb.skb,
-            IP_DEST_ADDR_OFFSET as u32,
-            new_be as *const u32 as *const c_void,
-            4,
-            0,
-        )
-    } < 0
-    {
-        error!(ctx, "error writing new address ");
-    }
-    if let Err(err) = (*skb).l4_csum_replace(
-        UDP_CSUM_OFFSET,
-        *old_be as u64,
-        *new_be as u64,
-        4 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
-
-    if let Err(err) = (*skb).l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4) {
-        error!(ctx, "error: {}", err);
-    }
-    log_csums(ctx);
-}
-
-fn update_dst_port(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u16) {
-    info!(ctx, "updating dst port:");
-    if unsafe {
-        bpf_skb_store_bytes(
-            skb.skb,
-            UDP_DEST_PORT_OFFSET as u32,
-            new_be as *const u16 as *const c_void,
-            2,
-            0,
-        )
-    } < 0
-    {
-        error!(ctx, "error writing new port ");
-    }
-    if let Err(err) = (*skb).l4_csum_replace(
-        UDP_CSUM_OFFSET,
-        *old_be as u64,
-        *new_be as u64,
-        2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    ) {
-        error!(ctx, "error: {}", err);
-    }
-
-    log_csums(ctx);
 }
 
 fn update_udp_hdr_len(ctx: &TcContext, skb: &SkBuff, new_be: &u16) {
@@ -127,14 +63,7 @@ fn update_ip_hdr_tot_len(ctx: &TcContext, skb: &SkBuff, old_be: &u16, new_be: &u
     {
         error!(ctx, "error writing iphdr tot len ");
     }
-    // if let Err(err) = (*skb).l4_csum_replace(
-    //     UDP_CSUM_OFFSET,
-    //     *old_be as u64,
-    //     *new_be as u64,
-    //     2 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    // ) {
-    //     error!(ctx, "error: {}", err);
-    // }
+
     if let Err(err) = (*skb).l3_csum_replace(IP_CSUM_OFFSET, *old_be as u64, *new_be as u64, 4) {
         error!(ctx, "error: {}", err);
     }
@@ -148,15 +77,6 @@ fn inject_udp_payload(ctx: &TcContext, skb: &SkBuff, offset: u32, new_be: &u32) 
     {
         error!(ctx, "error injecting payload ");
     }
-    // if let Err(err) = (*skb).l4_csum_replace(
-    //     UDP_CSUM_OFFSET,
-    //     0,
-    //     *new_be as u64,
-    //     4 + BPF_F_PSEUDO_HDR + BPF_F_MARK_ENFORCE,
-    // ) {
-    //     error!(ctx, "error: {}", err);
-    // }
-
     log_csums(ctx);
 }
 
@@ -190,7 +110,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                 let offset = fixed_size_added_keys.len();
 
                 log_csums(&ctx);
-                update_dst_addr(&ctx, skb, &addr, &target_ip.to_be());
+                update_addr(&ctx, skb, &addr, &target_ip.to_be(), UpdateType::Dst);
 
                 update_ip_hdr_tot_len(
                     &ctx,
@@ -245,7 +165,7 @@ fn tc_process_egress(ctx: TcContext) -> Result<i32, ()> {
                     &(u16::from_be(udp_hdr.len) + offset as u16).to_be(),
                 );
 
-                update_dst_port(&ctx, skb, &53u16.to_be(), &54u16.to_be());
+                update_port(&ctx, skb, &53u16.to_be(), &54u16.to_be(), UpdateType::Dst);
 
                 //recompute checksum layer 4
                 //set current csum to 0
