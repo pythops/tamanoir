@@ -29,10 +29,8 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, ()> {
             if u32::from_be(addr) == target_ip {
                 info!(ctx, "\n-----\nNew intercepted request:\n-----");
 
-                let udp_port = &ctx.load::<UdpHdr>(UDP_OFFSET).map_err(|_| ())?.source;
-
                 update_addr(ctx, &addr, &hijack_ip.to_be(), UpdateType::Src)?;
-                update_port(ctx, &udp_port, &53u16.to_be(), UpdateType::Src)?;
+                update_port(ctx, &53u16.to_be(), UpdateType::Src)?;
             }
         };
     }
