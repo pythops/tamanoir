@@ -3,10 +3,9 @@ use aya_log_ebpf::info;
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
-    udp::UdpHdr,
 };
 
-use crate::common::{update_addr, update_port, UpdateType, HIJACK_IP, TARGET_IP, UDP_OFFSET};
+use crate::common::{update_addr, update_port, UpdateType, HIJACK_IP, TARGET_IP};
 
 #[classifier]
 pub fn tamanoir_ingress(mut ctx: TcContext) -> i32 {

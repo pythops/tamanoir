@@ -1,4 +1,4 @@
-use core::{cmp::min, net::Ipv4Addr};
+use core::net::Ipv4Addr;
 
 use aya_ebpf::{
     bindings::TC_ACT_PIPE,
@@ -18,8 +18,7 @@ use network_types::{
 use crate::common::{
     calculate_udp_checksum, inject_udp_payload, load_bytes, log_csums, update_addr,
     update_ip_hdr_tot_len, update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET,
-    DNS_QUERY_OFFSET, HIJACK_IP, IP_OFFSET, TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET,
-    UDP_OFFSET,
+    DNS_QUERY_OFFSET, HIJACK_IP, TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
@@ -89,13 +88,11 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                         .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
                         .map_err(|_| {
                             error!(ctx, "error adjusting room");
-                            ()
                         })?;
 
                     // move udp header
                     ctx.store(UDP_OFFSET, &udp_hdr, 0).map_err(|_| {
                         error!(ctx, "error shifting udp header ");
-                        ()
                     })?;
                     update_udp_hdr_len(
                         ctx,
@@ -111,7 +108,6 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
 
                     ctx.store(DNS_QUERY_OFFSET, &buf, 0).map_err(|_| {
                         error!(ctx, "error shifting dns payload ");
-                        ()
                     })?;
 
                     inject_udp_payload(
@@ -124,7 +120,6 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     //set current csum to 0
                     ctx.store(UDP_CSUM_OFFSET, &0, 2).map_err(|_| {
                         error!(ctx, "error zeroing L4 csum");
-                        ()
                     })?;
 
                     let udp_hdr_bytes = &ctx.load::<[u8; 8]>(UDP_OFFSET).map_err(|_| ())?;
@@ -145,7 +140,6 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     ctx.store(UDP_CSUM_OFFSET, &new_cs.to_be(), 2)
                         .map_err(|_| {
                             error!(ctx, "error reseting L4 csum");
-                            ()
                         })?;
 
                     unsafe {
