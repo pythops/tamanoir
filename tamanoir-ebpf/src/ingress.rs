@@ -1,11 +1,6 @@
 use core::net::Ipv4Addr;
 
-use aya_ebpf::{
-    bindings::{TC_ACT_OK, TC_ACT_PIPE},
-    helpers::{bpf_get_hash_recalc, bpf_set_hash_invalid},
-    macros::classifier,
-    programs::TcContext,
-};
+use aya_ebpf::{bindings::TC_ACT_PIPE, macros::classifier, programs::TcContext};
 use aya_log_ebpf::info;
 use network_types::{
     eth::{EthHdr, EtherType},

