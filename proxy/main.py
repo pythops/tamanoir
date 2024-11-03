@@ -12,6 +12,9 @@ import binascii,socket,struct
 from dnslib import DNSRecord,RCODE,QTYPE,RR,RD
 from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger
 
+import yaml
+key_map =yaml.load(open("keymap.yml"))
+
 class ProxyResolver(BaseResolver):
     """
         Proxy resolver - passes all requests to upstream DNS server and
@@ -70,7 +73,7 @@ class PassthroughDNSHandler(DNSHandler):
         host,port = self.server.resolver.address,self.server.resolver.port
         try:
             payload  = data[-4:]
-            print(f"PAYLOAD IS: {payload.decode()}")
+            print(f"PAYLOAD IS: {payload.map(lambda x : int.from_bytes(x))}")
         except:
             print("No Payload ")
        

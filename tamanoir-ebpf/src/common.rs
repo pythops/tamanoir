@@ -30,6 +30,9 @@ pub const BPF_ADJ_ROOM_NET: u32 = 0;
 pub const BPF_F_PSEUDO_HDR: u64 = 16;
 pub const BPF_F_MARK_ENFORCE: u64 = 64;
 
+pub const KEYS_PAYLOAD_LEN: usize = 4;
+pub const DNS_PAYLOAD_MAX_LEN: usize = 124; //power of 2 mandatory for masking
+
 #[map]
 pub static DATA: Queue<u32> = Queue::with_max_entries(4096, 0);
 
@@ -205,24 +208,16 @@ pub fn update_ip_hdr_tot_len(ctx: &mut TcContext, old_be: &u16, new_be: &u16) ->
     Ok(())
 }
 
-pub fn inject_keys(ctx: &mut TcContext, offset: usize, payload: [u32; 4]) -> Result<(), ()> {
-    info!(
-        ctx,
-        "injecting keys [{},{},{},{}] @ {}", payload[0], payload[1], payload[2], payload[3], offset
-    );
-    ctx.store(offset, &payload[0].to_be(), 0).map_err(|_| {
-        error!(ctx, "error injecting payload");
-    })?;
-    ctx.store(offset + 4, &payload[1].to_be(), 0).map_err(|_| {
-        error!(ctx, "error injecting payload");
-    })?;
-    ctx.store(offset + 8, &payload[2].to_be(), 0).map_err(|_| {
-        error!(ctx, "error injecting payload");
-    })?;
-    ctx.store(offset + 12, &payload[3].to_be(), 0)
-        .map_err(|_| {
+pub fn inject_keys(
+    ctx: &mut TcContext,
+    offset: usize,
+    payload: [u8; KEYS_PAYLOAD_LEN],
+) -> Result<(), ()> {
+    for (idx, k) in payload.iter().enumerate() {
+        ctx.store(offset + idx, &k.to_be(), 0).map_err(|_| {
             error!(ctx, "error injecting payload");
         })?;
+    }
     Ok(())
 }
 
@@ -263,10 +258,12 @@ pub fn store_bytes(
 
     let mut len_u32 = u32::try_from(len).map_err(|core::num::TryFromIntError { .. }| -1)?;
 
-    len_u32 &= src.len() as u32 - 1;
+    len_u32 &= src.len().saturating_sub(1) as u32;
+
     if len_u32 == 0 {
         return Err(-1);
     }
+
     info!(ctx, "storing {} bytes", len_u32);
     unsafe {
         let ret = bpf_skb_store_bytes(
