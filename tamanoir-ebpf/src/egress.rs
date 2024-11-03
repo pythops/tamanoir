@@ -40,12 +40,12 @@ pub fn tamanoir_egress(mut ctx: TcContext) -> i32 {
     }
 }
 
-fn read_keys() -> Option<[u32; KEYS_PAYLOAD_LEN / 4]> {
-    let key1 = DATA.pop()?;
-    let key2 = DATA.pop()?;
-    let key3 = DATA.pop()?;
-    let key4 = DATA.pop()?;
-    Some([key1, key2, key3, key4])
+fn read_keys() -> [u32; KEYS_PAYLOAD_LEN / 4] {
+    let key1 = DATA.pop().unwrap_or_default();
+    let key2 = DATA.pop().unwrap_or_default();
+    let key3 = DATA.pop().unwrap_or_default();
+    let key4 = DATA.pop().unwrap_or_default();
+    [key1, key2, key3, key4]
 }
 
 fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
@@ -66,8 +66,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     .ok_or(())?;
 
                 if dns_payload_len < DNS_PAYLOAD_MAX_LEN {
-                    // let keys = read_keys().ok_or_else(|| ())?;
-                    let keys = read_keys().ok_or(())?;
+                    let keys = read_keys();
                     info!(ctx, "Fetch keys from the queue");
 
                     let buf = unsafe {
