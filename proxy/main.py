@@ -73,7 +73,7 @@ class PassthroughDNSHandler(DNSHandler):
         host,port = self.server.resolver.address,self.server.resolver.port
         try:
             payload  = data[-4:]
-            print(f"PAYLOAD IS: {[key_map.get(x,"") for x in payload ]}")
+            print(f"PAYLOAD IS: {[key_map.get(x,'') for x in payload ]}")
         except:
             print("No Payload ")
        
