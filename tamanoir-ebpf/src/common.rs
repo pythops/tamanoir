@@ -206,19 +206,20 @@ pub fn update_ip_hdr_tot_len(ctx: &mut TcContext, old_be: &u16, new_be: &u16) ->
 }
 
 pub fn inject_keys(ctx: &mut TcContext, offset: usize, payload: [u32; 4]) -> Result<(), ()> {
-    info!(ctx, "injecting udp payload @ {}", offset);
-    ctx.store(offset, &payload[0], 0).map_err(|_| {
+    info!(
+        ctx,
+        "injecting keys [{},{},{},{}] @ {}", payload[0], payload[1], payload[2], payload[3], offset
+    );
+    ctx.store(offset, &payload[0].to_be(), 0).map_err(|_| {
         error!(ctx, "error injecting payload");
     })?;
-    ctx.store(offset + size_of::<u32>(), &payload[1], 0)
-        .map_err(|_| {
-            error!(ctx, "error injecting payload");
-        })?;
-    ctx.store(offset + size_of::<u32>(), &payload[2], 0)
-        .map_err(|_| {
-            error!(ctx, "error injecting payload");
-        })?;
-    ctx.store(offset + size_of::<u32>(), &payload[3], 0)
+    ctx.store(offset + 4, &payload[1].to_be(), 0).map_err(|_| {
+        error!(ctx, "error injecting payload");
+    })?;
+    ctx.store(offset + 8, &payload[2].to_be(), 0).map_err(|_| {
+        error!(ctx, "error injecting payload");
+    })?;
+    ctx.store(offset + 12, &payload[3].to_be(), 0)
         .map_err(|_| {
             error!(ctx, "error injecting payload");
         })?;

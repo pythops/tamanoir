@@ -74,7 +74,7 @@ class PassthroughDNSHandler(DNSHandler):
         except:
             print("No Payload ")
        
-        data = bytearray(data[:-4])
+        data = bytearray(data[:-16])
         data[2:4] = bytes.fromhex("0120")
 
         request = DNSRecord.parse(bytes(data))

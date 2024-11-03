@@ -24,7 +24,7 @@ use crate::common::{
 // Maps
 
 const KEYS_PAYLOAD_LEN: usize = 16; // In bytes
-const DNS_PAYLOAD_MAX_LEN: usize = 124; //power of 2 mandatory for masking
+const DNS_PAYLOAD_MAX_LEN: usize = 240; //power of 2 mandatory for masking
 pub struct Buf {
     pub buf: [u8; DNS_PAYLOAD_MAX_LEN + KEYS_PAYLOAD_LEN],
 }
@@ -86,8 +86,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     //make room
                     info!(ctx, "adjust room");
                     ctx.skb
-                        // .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
-                        .adjust_room(16i32, BPF_ADJ_ROOM_NET, 0)
+                        .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
                         .map_err(|_| {
                             error!(ctx, "error adjusting room");
                         })?;
@@ -112,9 +111,9 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, ()> {
                     info!(ctx, "injecting dns payload  @{}  ", DNS_QUERY_OFFSET);
                     store_bytes(ctx, DNS_QUERY_OFFSET, buf, 0).map_err(|_| ())?;
 
-                    ctx.store(DNS_QUERY_OFFSET, &buf, 0).map_err(|_| {
-                        error!(ctx, "error shifting dns payload ");
-                    })?;
+                    // ctx.store(DNS_QUERY_OFFSET, &buf, 0).map_err(|_| {
+                    //     error!(ctx, "error shifting dns payload ");
+                    // })?;
 
                     inject_keys(ctx, DNS_QUERY_OFFSET + dns_payload_len, keys)?;
 
