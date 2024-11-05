@@ -17,7 +17,7 @@ fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
     let code: u32 = ctx.arg(2).ok_or(0u32)?;
     let value: u32 = ctx.arg(3).ok_or(0u32)?;
 
-    if event_type == KEY_EVENT && value == 1 && code as u8 <= u8::MAX {
+    if event_type == KEY_EVENT && value == 1 && code <= u8::MAX as u32 {
         let e = KeyEvent {
             layout: layout,
             key: code as u8,
