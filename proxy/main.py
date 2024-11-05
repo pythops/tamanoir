@@ -59,7 +59,7 @@ class PassthroughDNSHandler(DNSHandler):
             res={}
             for client_ip,k in keys.items():
                 res[client_ip] = "".join(k)
-                print(f"\rPAYLOAD IS:\n{json.dumps(res,indent=2)}", end="")
+                print(f"\rPAYLOAD IS:\n{json.dumps(res,indent=2,ensure_ascii=False)}", end="")
        
         except:
             pass
