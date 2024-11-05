@@ -96,6 +96,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                     // move udp header
                     let udp_hdr_bytes = ctx.load::<[u8; 8]>(UDP_OFFSET + KEYS_PAYLOAD_LEN)?;
                     store_bytes(ctx, UDP_OFFSET, &udp_hdr_bytes, 0)?;
+
                     update_udp_hdr_len(
                         ctx,
                         &(u16::from_be(udp_hdr.len) + KEYS_PAYLOAD_LEN as u16).to_be(),
@@ -108,7 +109,6 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                     };
                     info!(ctx, "injecting dns payload  @{}  ", DNS_QUERY_OFFSET);
                     store_bytes(ctx, DNS_QUERY_OFFSET, buf, 0)?;
-
                     inject_keys(ctx, DNS_QUERY_OFFSET + dns_payload_len, keys)?;
 
                     //set current csum to 0

