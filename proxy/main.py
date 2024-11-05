@@ -1,7 +1,7 @@
 import yaml
 import json
 import socket
-
+import os
 from dnslib import DNSRecord,RCODE,QTYPE
 from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger
 
@@ -59,7 +59,8 @@ class PassthroughDNSHandler(DNSHandler):
             res={}
             for client_ip,k in keys.items():
                 res[client_ip] = "".join(k)
-                print(f"\rPAYLOAD IS:\n{json.dumps(res,indent=2,ensure_ascii=False)}", end="")
+            os.system("clear")
+            print(f"payloads:\n{json.dumps(res,indent=2,ensure_ascii=False)}")
        
         except:
             pass
