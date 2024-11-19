@@ -7,6 +7,8 @@ edition = "2021"
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
 network-types = "*"
+flex-dns = "1.0.1"
+
 
 [build-dependencies]
 which = { workspace = true }
