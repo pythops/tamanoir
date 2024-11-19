@@ -1,14 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["xtask", "tamanoir", "tamanoir-ebpf"]
-default-members = ["xtask", "tamanoir"]
+members = ["tamanoir", "tamanoir-ebpf"]
+default-members = ["tamanoir"]
 
 [workspace.dependencies]
 aya = { version = "0.13", default-features = false }
 aya-ebpf = { version = "0.1", default-features = false }
 aya-log = { version = "0.2", default-features = false }
 aya-log-ebpf = { version = "0.1", default-features = false }
-
 anyhow = { version = "1", default-features = false }
 cargo_metadata = { version = "0.18", default-features = false }
 clap = { version = "4", default-features = false, features = ["std"] }
@@ -16,7 +15,7 @@ env_logger = { version = "0.11", default-features = false }
 libc = { version = "0.2", default-features = false }
 log = { version = "0.4", default-features = false }
 tokio = { version = "1", default-features = false }
-which = { version = "6", default-features = false }
+which = { version = "7", default-features = false }
 
 [profile.dev]
 panic = "abort"

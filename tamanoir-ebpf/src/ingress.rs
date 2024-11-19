@@ -12,8 +12,7 @@ use network_types::{
 };
 
 use crate::common::{
-    update_addr, update_port, UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, TARGET_IP,
-    UDP_CSUM_OFFSET, UDP_OFFSET,
+    update_addr, UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
 };
 
 #[classifier]

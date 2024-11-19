@@ -82,7 +82,7 @@ pub fn update_addr(
     Ok(())
 }
 
-pub fn update_port(
+pub fn _update_port(
     ctx: &mut TcContext,
     old_be: &u16,
     new_be: &u16,
