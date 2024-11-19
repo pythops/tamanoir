@@ -1,14 +1,19 @@
 use core::net::Ipv4Addr;
 
-use aya_ebpf::{bindings::TC_ACT_PIPE, macros::classifier, programs::TcContext};
-use aya_log_ebpf::info;
+use aya_ebpf::{
+    bindings::{TC_ACT_OK, TC_ACT_PIPE},
+    macros::classifier,
+    programs::TcContext,
+};
+use aya_log_ebpf::{error, info};
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
 };
 
 use crate::common::{
-    update_addr, update_port, UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, TARGET_IP, UDP_OFFSET,
+    update_addr, update_port, UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, TARGET_IP,
+    UDP_CSUM_OFFSET, UDP_OFFSET,
 };
 
 #[classifier]
@@ -33,7 +38,12 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                 info!(ctx, "\n-----\nNew intercepted request:\n-----");
                 let udp_port = &ctx.load::<u16>(UDP_OFFSET)?;
                 update_addr(ctx, &addr, &hijack_ip.to_be(), UpdateType::Src)?;
-                update_port(ctx, udp_port, &53u16.to_be(), UpdateType::Src)?;
+                // necessary on some when sockopt SO_NO_CHECK isn't set
+                ctx.l4_csum_replace(UDP_CSUM_OFFSET, addr as u64, hijack_ip as u64, 4)
+                    .map_err(|_| {
+                        error!(ctx, "error: l4_csum_replace");
+                        -1
+                    })?;
 
                 info!(
                     ctx,
@@ -47,5 +57,5 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
         };
     }
 
-    Ok(TC_ACT_PIPE)
+    Ok(TC_ACT_OK)
 }
