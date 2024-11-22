@@ -19,7 +19,7 @@ fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
 
     if event_type == KEY_EVENT && value == 1 {
         let e = KeyEvent {
-            layout: layout,
+            layout,
             key: code as u8,
         };
         let _ = DATA.push(&e, 0);
