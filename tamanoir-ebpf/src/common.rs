@@ -33,6 +33,7 @@ pub const KEYS_EVENTS_LEN: usize = 4;
 pub const KEYS_PAYLOAD_LEN: usize = 2 * KEYS_EVENTS_LEN;
 pub const DNS_PAYLOAD_MAX_LEN: usize = 128;
 
+//TODO: define keyboard layout as enum
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
 pub struct KeyEvent {
@@ -55,11 +56,11 @@ pub fn update_addr(
 ) -> Result<(), i64> {
     let offset = match update_type {
         UpdateType::Src => {
-            info!(ctx, "updating src addr:");
+            info!(ctx, "updating src addr: ");
             IP_SRC_ADDR_OFFSET
         }
         UpdateType::Dst => {
-            info!(ctx, "updating dst addr:");
+            info!(ctx, "updating dst addr: ");
             IP_DEST_ADDR_OFFSET
         }
     };
@@ -100,7 +101,7 @@ pub fn _update_port(
     };
     info!(
         ctx,
-        "update port: {} => {} @ {}",
+        "update port: {} => {} at the offset {}",
         u16::from_be(*old_be),
         u16::from_be(*new_be),
         offset
