@@ -1,4 +1,4 @@
-use std::{net::Ipv4Addr, str::FromStr};
+use std::net::Ipv4Addr;
 
 use aya::{
     programs::{tc, KProbe, SchedClassifier, TcAttachType},
@@ -14,12 +14,12 @@ struct Opt {
     iface: String,
 
     #[clap(long, required = true)]
-    target_ip: String,
+    target_ip: Ipv4Addr,
 
     #[clap(long, required = true)]
-    hijack_ip: String,
+    hijack_ip: Ipv4Addr,
 
-    #[clap(long, default_value = "0")]
+    #[clap(long, default_value_t = 0)]
     layout: u8,
 }
 
@@ -43,8 +43,8 @@ async fn main() -> anyhow::Result<()> {
         debug!("remove limit on locked memory failed, ret is: {}", ret);
     }
 
-    let target_ip = Ipv4Addr::from_str(target_ip.as_str())?.to_bits();
-    let hijack_ip = Ipv4Addr::from_str(hijack_ip.as_str())?.to_bits();
+    let target_ip = target_ip.to_bits();
+    let hijack_ip = hijack_ip.to_bits();
 
     let mut ebpf = EbpfLoader::new()
         .set_global("TARGET_IP", &target_ip, true)
@@ -60,27 +60,17 @@ async fn main() -> anyhow::Result<()> {
 
     let _ = tc::qdisc_add_clsact(&iface);
 
-    let tc_program_egress: &mut SchedClassifier = ebpf
-        .program_mut("tamanoir_egress")
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let tc_program_egress: &mut SchedClassifier =
+        ebpf.program_mut("tamanoir_egress").unwrap().try_into()?;
 
-    tc_program_egress.load().unwrap();
-    tc_program_egress
-        .attach(&iface, TcAttachType::Egress)
-        .unwrap();
+    tc_program_egress.load()?;
+    tc_program_egress.attach(&iface, TcAttachType::Egress)?;
 
-    let tc_program_ingress: &mut SchedClassifier = ebpf
-        .program_mut("tamanoir_ingress")
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let tc_program_ingress: &mut SchedClassifier =
+        ebpf.program_mut("tamanoir_ingress").unwrap().try_into()?;
 
     tc_program_ingress.load().unwrap();
-    tc_program_ingress
-        .attach(&iface, TcAttachType::Ingress)
-        .unwrap();
+    tc_program_ingress.attach(&iface, TcAttachType::Ingress)?;
 
     let program: &mut KProbe = ebpf.program_mut("tamanoir_kprobe").unwrap().try_into()?;
     program.load()?;
