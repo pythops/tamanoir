@@ -4,7 +4,7 @@ use aya_ebpf::{
     maps::Queue,
     programs::TcContext,
 };
-use aya_log_ebpf::{error, info};
+use aya_log_ebpf::{debug, error, info};
 use network_types::{eth::EthHdr, ip::Ipv4Hdr};
 
 #[no_mangle]
@@ -56,11 +56,11 @@ pub fn update_addr(
 ) -> Result<(), i64> {
     let offset = match update_type {
         UpdateType::Src => {
-            info!(ctx, "updating src addr: ");
+            debug!(ctx, "updating src addr");
             IP_SRC_ADDR_OFFSET
         }
         UpdateType::Dst => {
-            info!(ctx, "updating dst addr: ");
+            debug!(ctx, "updating dst addr");
             IP_DEST_ADDR_OFFSET
         }
     };
@@ -68,7 +68,7 @@ pub fn update_addr(
         error!(ctx, "error writing new address ");
         -1
     })?;
-    info!(
+    debug!(
         ctx,
         "update addr: {} => {} ",
         u32::from_be(*old_be),
@@ -99,7 +99,7 @@ pub fn _update_port(
             UDP_DEST_PORT_OFFSET
         }
     };
-    info!(
+    debug!(
         ctx,
         "update port: {} => {} at the offset {}",
         u16::from_be(*old_be),
@@ -115,7 +115,7 @@ pub fn _update_port(
 }
 
 pub fn update_udp_hdr_len(ctx: &mut TcContext, new_be: &u16) -> Result<(), i64> {
-    info!(ctx, "updating udphdr len:");
+    debug!(ctx, "updating udphdr len:");
     ctx.store(UDP_LEN_OFFSET, new_be, 0).map_err(|_| {
         error!(ctx, "error writing new udp hdr len ");
         -1
@@ -124,7 +124,7 @@ pub fn update_udp_hdr_len(ctx: &mut TcContext, new_be: &u16) -> Result<(), i64> 
 }
 
 pub fn update_ip_hdr_tot_len(ctx: &mut TcContext, old_be: &u16, new_be: &u16) -> Result<(), i64> {
-    info!(ctx, "updating iphdr tot len:");
+    debug!(ctx, "updating iphdr tot len:");
     ctx.store(IP_TOT_LEN_OFFSET, new_be, 0).map_err(|_| {
         error!(ctx, "error writing iphdr tot len ");
         -1
@@ -159,7 +159,7 @@ pub fn load_bytes(ctx: &mut TcContext, offset: usize, dst: &mut [u8]) -> Result<
     if len == 0 {
         return Err(-1);
     }
-    info!(ctx, "loading {} bytes", len);
+    debug!(ctx, "loading {} bytes", len);
 
     let len_u32 = u32::try_from(len).map_err(|core::num::TryFromIntError { .. }| -1)?;
     let ret = unsafe {
@@ -192,7 +192,7 @@ pub fn store_bytes(
         return Err(-1);
     }
 
-    info!(ctx, "storing {} bytes", len_u32);
+    debug!(ctx, "storing {} bytes", len_u32);
     unsafe {
         let ret = bpf_skb_store_bytes(
             ctx.skb.skb as *mut _,
