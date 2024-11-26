@@ -1,13 +1,23 @@
 set export
+_default:
+    @just --list
 
-# List available targets
-default:
-    just --list
+# Build ebpf
+build-ebpf:
+    cd tamanoir-ebpf && cargo +nightly build --release
+
+
+# Build
+build:
+    just build-ebpf
+    cargo build --release
 
 # Run
-run:
-    RUST_LOG=info cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --target-ip 52.54.115.226 --hijack-ip 8.8.8.8 --layout 1
+run proxy_ip="52.54.115.226" hijack_ip="8.8.8.8" layout="1" log_level="info":
+    RUST_LOG={{log_level}} sudo -E target/release/tamanoir --target-ip {{proxy_ip}} --hijack-ip {{hijack_ip}} --layout {{layout}}
 
 # Run the proxy
 proxy:
-    cd proxy && docker build -t proxy . && docker run -it --rm -p53:53/udp  proxy   --log +error,-data,-request,-reply,-recv --log-prefix --passthrough
+    cd proxy &&\
+    docker build -t proxy . &&\
+    docker run --rm -it -p 53:53/udp  proxy --log +error,-data,-request,-reply,-recv --log-prefix --passthrough

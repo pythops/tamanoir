@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { workspace = true, default-features = true, features = [
+clap = { version = "4", default-features = true, features = [
   "derive",
   "cargo",
 ] }
-anyhow = { workspace = true, default-features = true }
+anyhow = "1"
 aya = { workspace = true }
 aya-log = { workspace = true }
 env_logger = { workspace = true }
@@ -21,10 +21,6 @@ tokio = { workspace = true, features = [
   "net",
   "signal",
 ] }
-
-[build-dependencies]
-cargo_metadata = { workspace = true }
-tamanoir-ebpf = { path = "../tamanoir-ebpf" }
 
 [[bin]]
 name = "tamanoir"

@@ -9,9 +9,6 @@ aya-log-ebpf = { workspace = true }
 network-types = "*"
 flex-dns = "1.0.1"
 
-[build-dependencies]
-which = { workspace = true }
-
 [[bin]]
 name = "tamanoir"
 path = "src/main.rs"

