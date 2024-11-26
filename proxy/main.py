@@ -1,4 +1,5 @@
 import argparse
+import os
 import json
 import socket
 import time
@@ -59,8 +60,10 @@ class PassthroughDNSHandler(DNSHandler):
             res = {}
             for client_ip, k in keys.items():
                 res[client_ip] = "".join(k)
-                print(f"\rPAYLOAD IS:\n{json.dumps(res,indent=2)}", end="")
-
+            os.system("clear")
+            for c,k in res.items():
+                print(f"{c}: {k}")
+            
         except Exception as e:
             print(e)
             pass

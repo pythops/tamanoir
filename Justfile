@@ -8,7 +8,7 @@ default:
 build-ebpf:
     #!/usr/bin/env bash
     pushd tamanoir-ebpf
-    cargo build  --release
+    cargo +nightly build  --release
     popd
 
 # Build
@@ -24,6 +24,6 @@ run proxy_ip="52.54.115.226" hijack_ip="8.8.8.8" layout="1":
 # Run the proxy
 proxy:
     #!/usr/bin/env bash
-    pushd proxy &&  \
+    cd proxy &&  \
     docker build -t proxy . && \
-    docker run --rm -p 53:53  proxy --log +error,-data,-request,-reply,-recv --log-prefix --passthrough
+    docker run --rm -it -p 53:53/udp  proxy --log +error,-data,-request,-reply,-recv --log-prefix --passthrough

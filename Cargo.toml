@@ -20,6 +20,3 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 
-[profile.release.package.tamanoir-ebpf]
-debug = 2
-codegen-units = 1
