@@ -1,8 +1,8 @@
 set export
 c_manager := "docker" 
-
 _default:
     @just --list
+    
 
 # Build ebpf
 build-ebpf:
