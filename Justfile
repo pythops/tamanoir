@@ -1,4 +1,6 @@
 set export
+c_manager := "docker" 
+
 _default:
     @just --list
 
@@ -18,6 +20,6 @@ run proxy_ip="52.54.115.226" hijack_ip="8.8.8.8" layout="1" log_level="info":
 
 # Run the proxy
 proxy:
-    cd proxy &&\
-    docker build -t proxy . &&\
-    docker run --rm -it -p 53:53/udp  proxy --log +error,-data,-request,-reply,-recv --log-prefix --passthrough
+    cd proxy && \
+    {{c_manager}} build -t proxy . &&\
+    {{c_manager}} run --rm -it -p 53:53/udp -e PAYLOAD_LEN=8  proxy --log +error,-data,-request,-reply,-recv

