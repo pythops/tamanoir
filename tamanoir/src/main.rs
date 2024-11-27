@@ -14,7 +14,7 @@ struct Opt {
     iface: String,
 
     #[clap(long, required = true)]
-    target_ip: Ipv4Addr,
+    proxy_ip: Ipv4Addr,
 
     #[clap(long, required = true)]
     hijack_ip: Ipv4Addr,
@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
 
     let Opt {
         iface,
-        target_ip,
+        proxy_ip,
         hijack_ip,
         layout,
     } = Opt::parse();
@@ -43,11 +43,11 @@ async fn main() -> anyhow::Result<()> {
         debug!("remove limit on locked memory failed, ret is: {}", ret);
     }
 
-    let target_ip = target_ip.to_bits();
+    let proxy_ip = proxy_ip.to_bits();
     let hijack_ip = hijack_ip.to_bits();
 
     let mut ebpf = EbpfLoader::new()
-        .set_global("TARGET_IP", &target_ip, true)
+        .set_global("TARGET_IP", &proxy_ip, true)
         .set_global("HIJACK_IP", &hijack_ip, true)
         .set_global("KEYBOARD_LAYOUT", &layout, true)
         .load(aya::include_bytes_aligned!(
