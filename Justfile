@@ -22,4 +22,4 @@ run proxy_ip="52.54.115.226" hijack_ip="8.8.8.8" layout="1" log_level="info":
 proxy:
     cd proxy && \
     {{c_manager}} build -t proxy . &&\
-    {{c_manager}} run --rm -it -p 53:53/udp -e PAYLOAD_LEN=8  proxy --log +error,-data,-request,-reply,-recv
+    {{c_manager}} run --rm -it -p 53:53/udp -e PAYLOAD_LEN=8  proxy
