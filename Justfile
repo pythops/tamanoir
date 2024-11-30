@@ -1,11 +1,10 @@
 set export
 _default:
     @just --list
-    
 
 # Build ebpf
 build-ebpf:
-    cd tamanoir-ebpf && cargo +nightly build --release
+    cd tamanoir-ebpf && cargo build --release
 
 # Build
 build:

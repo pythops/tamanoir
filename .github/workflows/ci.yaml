@@ -16,6 +16,7 @@ jobs:
         with:
           toolchain: nightly
           components: clippy rustfmt
+
       - run: cargo binstall -y bpf-linker
 
       - name: Build
