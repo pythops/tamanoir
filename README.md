@@ -65,7 +65,7 @@ Currenly, there is only 2 supported keyboard layouts:
 - [ ] Automatic discovery of the configured local dns server
 - [ ] Automatic discovery of the keyboard layout
 - [ ] Rewrite the DNS proxy in Rust
-- [ ] Make the `Tamanoir` stealth
+- [ ] Make the `Tamanoir` stealth (Hide ebpf maps, process pid ...)
 
 <br>
 
