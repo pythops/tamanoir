@@ -46,7 +46,7 @@ class PassthroughDNSHandler(DNSHandler):
         host, port = self.server.resolver.address, self.server.resolver.port
         client_ip = str(self.client_address[0])
         if not keys.get(client_ip):
-            keys[client_ip] = []
+            keys[client_ip] = {}
 
         try:
             payload = data[-PAYLOAD_LEN:]
