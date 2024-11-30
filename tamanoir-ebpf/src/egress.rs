@@ -38,7 +38,7 @@ fn read_keys() -> [u8; KEYS_PAYLOAD_LEN] {
     let mut res = [0u8; KEYS_PAYLOAD_LEN];
     for k in 0..KEYS_EVENTS_LEN {
         let item = DATA.pop().unwrap_or_default();
-        res[2 * k] = item.layout;
+        res[2 * k] = item.tty;
         res[2 * k + 1] = item.key;
     }
     res

