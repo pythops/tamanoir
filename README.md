@@ -3,18 +3,13 @@
   <img src="https://github.com/user-attachments/assets/47b8a0ef-6a52-4e2d-8188-e77bb9e98d79" style="width: 40%; height: 40%"</img>
 </div>
 
-## Overview
+## 💡Overview
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/24f80020-9d60-4f2a-825b-ed56574dfb24" </img>
 </div>
 
-## Prerequisites
-
-- A Linux based OS.
-- [just](https://github.com/casey/just)
-
-## Usage
+## 🪄 Usage
 
 ### Tamanoir
 
@@ -45,18 +40,17 @@ Make sure you have:
 
 ```
 just proxy
-
 ```
 
-## Disclaimer
+## 🪧 Disclaimer
 
 `Tamanoir` is developed for educational purposes only
 
-## Authors
+## ✍️ Authors
 
-- [Badr Badri](https://github.com/pythops)
-- [Adrien Gaultier](https://github.com/adgaultier)
+[Badr Badri](https://github.com/pythops)
+[Adrien Gaultier](https://github.com/adgaultier)
 
-## License
+## ⚖️ License
 
 GPLv3
