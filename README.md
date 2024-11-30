@@ -56,6 +56,8 @@ Currenly, there is only 2 supported keyboard layout:
 
 `1` : azerty (fr)
 
+<br>
+
 ## 🛠️TODO
 
 - [ ] Automatic discovery of the configured local dns server
