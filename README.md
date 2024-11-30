@@ -9,6 +9,8 @@
   <img src="https://github.com/user-attachments/assets/24f80020-9d60-4f2a-825b-ed56574dfb24" </img>
 </div>
 
+<br>
+
 ## 🪄 Usage
 
 ### Dns Proxy
@@ -59,15 +61,21 @@ Currenly, there is only 2 supported keyboard layout:
 - [ ] Automatic discovery of the configured local dns server
 - [ ] Automatic discovery of the keyboard layout
 
+<br>
+
 ## ⚠️ Disclaimer
 
 `Tamanoir` is developed for educational purposes only
+
+<br>
 
 ## ✍️ Authors
 
 [Badr Badri](https://github.com/pythops)
 
 [Adrien Gaultier](https://github.com/adgaultier)
+
+<br>
 
 ## ⚖️ License
 
