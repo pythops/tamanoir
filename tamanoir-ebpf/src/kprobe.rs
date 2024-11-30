@@ -1,6 +1,8 @@
 use core::mem;
 
 use aya_ebpf::{
+    cty::{c_char, size_t},
+    helpers::{bpf_probe_read_buf, bpf_probe_read_kernel, bpf_probe_read_kernel_buf},
     macros::{kprobe, map},
     maps::HashMap,
     programs::ProbeContext,
@@ -91,6 +93,21 @@ fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
             }
         }
     }
+
+    Ok(0)
+}
+
+#[kprobe]
+pub fn test(ctx: ProbeContext) -> u32 {
+    match kprobe_test(ctx) {
+        Ok(ret) => ret,
+        Err(ret) => ret,
+    }
+}
+fn kprobe_test(ctx: ProbeContext) -> Result<u32, u32> {
+    let char: u8 = ctx.arg(1).ok_or(0u32)?;
+
+    debug!(&ctx, "char: {}", char);
 
     Ok(0)
 }
