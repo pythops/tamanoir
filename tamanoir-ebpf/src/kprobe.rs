@@ -63,7 +63,7 @@ fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
 
     if event_type == KEY_EVENT && code <= KEY_CODE_MAX as u32 {
         let code = code as u8;
-        if let Some(_) = Modifiers::from_id(code) {
+        if Modifiers::from_id(code).is_some() {
             match value {
                 0 => MODIFIERS_STATE.remove(&code).map_err(|_| 1u32)?,
                 1 => MODIFIERS_STATE.insert(&code, &1, 0).map_err(|_| 1u32)?,
@@ -75,7 +75,7 @@ fn kprobe_process(ctx: ProbeContext) -> Result<u32, u32> {
                 _ => {
                     for modifier in Modifiers::variants() {
                         let modifier = *modifier as u8;
-                        if let Some(_) = unsafe { MODIFIERS_STATE.get(&modifier) } {
+                        if unsafe { MODIFIERS_STATE.get(&modifier) }.is_some() {
                             debug!(&ctx, "mod: {} +", modifier);
                             let e = KeyEvent {
                                 layout,
