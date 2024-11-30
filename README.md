@@ -1,6 +1,7 @@
 <div align="center">
   <h1> Tamanoir </h1>
   <img src="https://github.com/user-attachments/assets/47b8a0ef-6a52-4e2d-8188-e77bb9e98d79" style="width: 40%; height: 40%"</img>
+  <h2> A KeyLogger using eBPF </h2>
 </div>
 
 ## 💡Overview
@@ -29,6 +30,7 @@ just proxy
 Before using `Tamanoir`, make sure you have:
 
 - A Linux based OS.
+- [bpf-linker](https://github.com/aya-rs/bpf-linker) installed.
 - [just](https://github.com/casey/just) installed.
 - [Rust](https://www.rust-lang.org/tools/install) installed with `nightly` toolchain.
 
@@ -41,18 +43,18 @@ just build
 2. Run
 
 ```
-just run <Locally onfigured DNS server IP> <DNS Proxy IP> <keyboard layout>
+just run <Locally configured DNS server IP> <DNS Proxy IP> <keyboard layout>
 ```
 
-for examples:
+for example:
 
 ```
 just run 8.8.8.8 192.168.1.75 0
 ```
 
-Currenly, there is only 2 supported keyboard layout:
+Currenly, there is only 2 supported keyboard layouts:
 
-`0` : qwery (us)
+`0` : qwerty (us)
 
 `1` : azerty (fr)
 
@@ -62,6 +64,8 @@ Currenly, there is only 2 supported keyboard layout:
 
 - [ ] Automatic discovery of the configured local dns server
 - [ ] Automatic discovery of the keyboard layout
+- [ ] Rewrite the DNS proxy in Rust
+- [ ] Make the `Tamanoir` stealth
 
 <br>
 
