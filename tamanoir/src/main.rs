@@ -74,11 +74,7 @@ async fn main() -> anyhow::Result<()> {
 
     let program: &mut KProbe = ebpf.program_mut("tamanoir_kprobe").unwrap().try_into()?;
     program.load()?;
-    program.attach("input_handle_event", 0)?;
-
-    let program_t: &mut KProbe = ebpf.program_mut("test").unwrap().try_into()?;
-    program_t.load()?;
-    program_t.attach("n_tty_receive_char", 0)?;
+    program.attach("n_tty_receive_char", 0)?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
