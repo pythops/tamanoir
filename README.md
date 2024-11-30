@@ -11,6 +11,17 @@
 
 ## 🪄 Usage
 
+### Dns Proxy
+
+Make sure you have:
+
+- `docker` installed.
+- [just](https://github.com/casey/just) installed.
+
+```
+just proxy
+```
+
 ### Tamanoir
 
 Before using `Tamanoir`, make sure you have:
@@ -28,21 +39,26 @@ just build
 2. Run
 
 ```
-just run
+just run <Locally onfigured DNS server IP> <DNS Proxy IP> <keyboard layout>
 ```
 
-### Dns Proxy
-
-Make sure you have:
-
-- `docker` installed.
-- [just](https://github.com/casey/just) installed.
+for examples:
 
 ```
-just proxy
+just run 8.8.8.8 192.168.1.75 0
 ```
 
-## 🪧 Disclaimer
+Currenly, there is only 2 supported keyboard layout:
+
+`0` : qwery (us)
+`1` : azerty (fr)
+
+## TODO
+
+- [] Automatic discovery of the configured local dns server
+- [] Automatic discovery of the keyboard layout
+
+## ⚠️ Disclaimer
 
 `Tamanoir` is developed for educational purposes only
 
