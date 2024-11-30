@@ -51,12 +51,13 @@ just run 8.8.8.8 192.168.1.75 0
 Currenly, there is only 2 supported keyboard layout:
 
 `0` : qwery (us)
+
 `1` : azerty (fr)
 
-## TODO
+## 🛠️TODO
 
-- [] Automatic discovery of the configured local dns server
-- [] Automatic discovery of the keyboard layout
+- [ ] Automatic discovery of the configured local dns server
+- [ ] Automatic discovery of the keyboard layout
 
 ## ⚠️ Disclaimer
 
@@ -65,6 +66,7 @@ Currenly, there is only 2 supported keyboard layout:
 ## ✍️ Authors
 
 [Badr Badri](https://github.com/pythops)
+
 [Adrien Gaultier](https://github.com/adgaultier)
 
 ## ⚖️ License
