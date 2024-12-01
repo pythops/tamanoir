@@ -64,7 +64,7 @@ for example:
 ```
 RUST_LOG=info sudo -E tamanoir \
               --proxy-ip 192.168.1.75 \
-              --hijack_ip 8.8.8.8 \
+              --hijack-ip 8.8.8.8 \
               --layout 0
 ```
 
