@@ -11,17 +11,13 @@
 
 <br>
 
-## Setup
+## 🚀 Setup
 
 ### Tamanoir
 
-#### 📜 Prerequisites
+You need a Linux based OS.
 
-A Linux based OS.
-
-#### 🚀 Installation
-
-##### Build from source
+#### Build from source
 
 To build from source, make sure you have:
 
@@ -43,7 +39,7 @@ cargo build --release
 
 This will produce an executable file at `target/release/tamanoir` that you can copy to a directory in your `$PATH`
 
-##### 📥 Binary release
+#### 📥 Binary release
 
 You can download the pre-built binaries from the [release page](https://github.com/pythops/tamanoir/releases)
 
@@ -72,6 +68,8 @@ Currenly, there are two supported keyboard layouts:
 `0` : qwerty (us)
 
 `1` : azerty (fr)
+
+---
 
 ### DNS Proxy
 
