@@ -13,25 +13,23 @@
 
 ## 🚀 Setup
 
-### Tamanoir
-
 You need a Linux based OS.
 
-##### ⚒️ Build from source
+### ⚒️ Build from source
 
 To build from source, make sure you have:
 
 - [bpf-linker](https://github.com/aya-rs/bpf-linker) installed.
 - [Rust](https://www.rust-lang.org/tools/install) installed with `nightly` toolchain.
 
-1. Build ebpf program
+#### 1. Build ebpf program
 
 ```
 cd tamanoir-ebpf
 cargo build --release
 ```
 
-2. Build user space program
+#### 2. Build user space program
 
 ```
 cargo build --release
@@ -39,13 +37,15 @@ cargo build --release
 
 This will produce an executable file at `target/release/tamanoir` that you can copy to a directory in your `$PATH`
 
-##### 📥 Binary release
+### 📥 Binary release
 
 You can download the pre-built binaries from the [release page](https://github.com/pythops/tamanoir/releases)
 
-#### 🪄 Usage
+<br>
 
-2. Run
+## 🪄 Usage
+
+### Tamanoir
 
 ```
 RUST_LOG=info sudo -E tamanoir \
@@ -69,7 +69,7 @@ Currenly, there are two supported keyboard layouts:
 
 `1` : azerty (fr)
 
----
+<br>
 
 ### DNS Proxy
 
