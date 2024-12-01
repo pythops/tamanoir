@@ -75,18 +75,16 @@ Currenly, there are two supported keyboard layouts:
 
 ### DNS Proxy
 
-On a remote host, make sure you have:
+On a remote host, make sure you have [docker](https://docs.docker.com/engine/install/) installed.
 
-- [docker](https://docs.docker.com/engine/install/) installed.
-
-1. Build proxy image
+#### 1. Build proxy image
 
 ```
 cd proxy
 docker build -t proxy .
 ```
 
-2. Run proxy
+#### 2. Run proxy
 
 > [!NOTE]
 > Make sure port 53 is available
