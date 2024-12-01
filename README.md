@@ -55,7 +55,7 @@ You can download the pre-built binaries from the [release page](https://github.c
 ```
 RUST_LOG=info sudo -E tamanoir \
               --proxy-ip <DNS proxy IP> \
-              --hijack_ip <locally configured DNS server IP> \
+              --hijack-ip <locally configured DNS server IP> \
               --layout <keyboard layout>
 ```
 
