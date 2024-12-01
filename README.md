@@ -17,7 +17,7 @@
 
 You need a Linux based OS.
 
-#### Build from source
+##### ⚒️ Build from source
 
 To build from source, make sure you have:
 
@@ -39,7 +39,7 @@ cargo build --release
 
 This will produce an executable file at `target/release/tamanoir` that you can copy to a directory in your `$PATH`
 
-#### 📥 Binary release
+##### 📥 Binary release
 
 You can download the pre-built binaries from the [release page](https://github.com/pythops/tamanoir/releases)
 
