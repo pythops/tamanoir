@@ -14,6 +14,11 @@
   <img src="https://github.com/user-attachments/assets/24f80020-9d60-4f2a-825b-ed56574dfb24" </img>
 </div>
 
+1. Capture keystrokes and store them in a queue in the kernel.
+2. Intercept DNS requests and inject the captured keystroes in the DNS payload then redirect the request designated remote server acting as a DNS proxy.
+3. On the remote server, extract the keys from the DNS payload and send a valid DNS response.
+4. Intercept the response and modify its source address so the initial request will complete successfully.
+
 <br>
 
 ## 🚀 Setup
