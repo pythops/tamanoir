@@ -56,7 +56,8 @@ You can download the pre-built binaries from the [release page](https://github.c
 RUST_LOG=info sudo -E tamanoir \
               --proxy-ip <DNS proxy IP> \
               --hijack-ip <locally configured DNS server IP> \
-              --layout <keyboard layout>
+              --layout <keyboard layout> \
+              --iface <network interface name>
 ```
 
 for example:
@@ -65,7 +66,8 @@ for example:
 RUST_LOG=info sudo -E tamanoir \
               --proxy-ip 192.168.1.75 \
               --hijack-ip 8.8.8.8 \
-              --layout 0
+              --layout 0 \
+              --iface wlan0
 ```
 
 Currenly, there are two supported keyboard layouts:
