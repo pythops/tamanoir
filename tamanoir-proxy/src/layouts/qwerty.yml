@@ -60,7 +60,7 @@ keys:
   69: " NumLock "
   86: "<"
   100: " Altgr+"
-mod:
+modifier:
   42:
     30: "A"
     48: "B"

