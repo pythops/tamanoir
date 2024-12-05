@@ -9,7 +9,7 @@ use log::{debug, info, log_enabled, Level};
 use serde::Deserialize;
 use tokio::{net::UdpSocket, sync::Mutex};
 
-const COMMON_REPEATED_KEYS: [&str; 4] = ["󱊷 ", "󰌑 ", "󰁮 ", " "];
+const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 
 enum Layout {
@@ -119,11 +119,11 @@ pub fn init_keymaps() {
     let mut map = HashMap::<u8, KeyMap>::new();
     map.insert(
         Layout::Azerty as u8,
-        serde_yaml::from_str::<KeyMap>(&include_str!("layouts/azerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(include_str!("layouts/azerty.yml")).unwrap(),
     );
     map.insert(
         Layout::Qwerty as u8,
-        serde_yaml::from_str::<KeyMap>(&include_str!("layouts/qwerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(include_str!("layouts/qwerty.yml")).unwrap(),
     );
     KEYMAPS.set(map).expect("Error initializing KEYMAPS");
 }
@@ -156,7 +156,6 @@ pub async fn mangle(
         .ok_or(0u32)?;
 
     let session = Session::new(addr).ok_or(0u32)?;
-
     if let std::collections::hash_map::Entry::Vacant(e) = current_sessions.entry(session.ip) {
         info!("Adding new session for client: {} ", session.ip);
         e.insert(session.clone());
