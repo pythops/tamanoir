@@ -1,17 +1,15 @@
-use log::{debug, info,log_enabled,Level};
-use serde::Deserialize;
-
 use std::{
     collections::HashMap,
     fmt::Display,
-    net::Ipv4Addr,
+    net::{Ipv4Addr, SocketAddr},
     sync::{Arc, OnceLock},
 };
+
+use log::{debug, info, log_enabled, Level};
+use serde::Deserialize;
 use tokio::{net::UdpSocket, sync::Mutex};
 
-use std::net::SocketAddr;
-
-const COMMON_REPEATED_KEYS: [&str; 4] = ["󱊷 ", "󰌑 ", "󰁮 ", " "];
+const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 
 enum Layout {
@@ -61,7 +59,7 @@ impl KeyMap {
     }
     pub fn is_modifier(&self, key_code: Option<&u8>) -> bool {
         if let Some(key_code) = key_code {
-            return self.r#mod.get(key_code).is_some();
+            return self.r#mod.contains_key(key_code);
         }
         false
     }
@@ -117,17 +115,15 @@ impl Display for Session {
     }
 }
 
-
-
 pub fn init_keymaps() {
     let mut map = HashMap::<u8, KeyMap>::new();
     map.insert(
         Layout::Azerty as u8,
-        serde_yaml::from_str::<KeyMap>(&include_str!("layouts/azerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(include_str!("layouts/azerty.yml")).unwrap(),
     );
     map.insert(
         Layout::Qwerty as u8,
-        serde_yaml::from_str::<KeyMap>(&include_str!("layouts/qwerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(include_str!("layouts/qwerty.yml")).unwrap(),
     );
     KEYMAPS.set(map).expect("Error initializing KEYMAPS");
 }
@@ -159,9 +155,9 @@ pub async fn mangle(
         .get(&(layout as u8))
         .ok_or(0u32)?;
     let session = Session::new(addr).ok_or(0u32)?;
-    if !current_sessions.contains_key(&session.ip) {
+    if let std::collections::hash_map::Entry::Vacant(e) = current_sessions.entry(session.ip) {
         info!("Adding new session for client: {} ", session.ip);
-        current_sessions.insert(session.ip, session.clone());
+        e.insert(session.clone());
     }
     let current_session = current_sessions.get_mut(&session.ip).unwrap();
 
@@ -176,10 +172,11 @@ pub async fn mangle(
             current_session.keys.extend(mapped_keys)
         }
     }
-    if !log_enabled!(Level::Debug){
+    if !log_enabled!(Level::Debug) {
         print!("\x1B[2J\x1B[1;1H");
-    
-        std::io::Write::flush(&mut std::io::stdout()).unwrap();}
+
+        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+    }
     for session in current_sessions.values() {
         info!("{}\n", session);
     }
