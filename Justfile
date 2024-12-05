@@ -22,4 +22,6 @@ run proxy_ip hijack_ip="8.8.8.8" layout="1" log_level="info":
 
 # Run the proxy
 proxy dns_ip="8.8.8.8" port="53" payload_len="8" log_level="info" :
+    cd tamanoir-proxy && \
+    cargo build --release  &&\
     RUST_LOG={{log_level}} sudo -E ./target/release/tamanoir-proxy  --port {{port}} --dns-ip {{dns_ip}} --payload-len {{payload_len}}

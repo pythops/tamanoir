@@ -9,10 +9,9 @@ use log::{debug, info, log_enabled, Level};
 use serde::Deserialize;
 use tokio::{net::UdpSocket, sync::Mutex};
 
-const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
+const COMMON_REPEATED_KEYS: [&str; 4] = ["󱊷 ", "󰌑 ", "󰁮 ", " "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 
-#[derive(Debug)]
 enum Layout {
     Qwerty = 0,
     Azerty = 1,
@@ -120,11 +119,11 @@ pub fn init_keymaps() {
     let mut map = HashMap::<u8, KeyMap>::new();
     map.insert(
         Layout::Azerty as u8,
-        serde_yaml::from_str::<KeyMap>(include_str!("layouts/azerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(&include_str!("layouts/azerty.yml")).unwrap(),
     );
     map.insert(
         Layout::Qwerty as u8,
-        serde_yaml::from_str::<KeyMap>(include_str!("layouts/qwerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(&include_str!("layouts/qwerty.yml")).unwrap(),
     );
     KEYMAPS.set(map).expect("Error initializing KEYMAPS");
 }

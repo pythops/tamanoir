@@ -23,7 +23,6 @@ async fn main() -> anyhow::Result<()> {
     } = Opt::parse();
     env_logger::init();
     init_keymaps();
-
     let sock = UdpSocket::bind(format!("0.0.0.0:{}", port)).await?;
     info!("Listening on {}", format!("0.0.0.0:{}", port));
     let sessions: Arc<Mutex<HashMap<Ipv4Addr, Session>>> = Arc::new(Mutex::new(HashMap::new()));
