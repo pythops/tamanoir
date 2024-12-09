@@ -15,7 +15,7 @@
 </div>
 
 1. Capture keystrokes and store them in a queue in the kernel.
-2. Intercept DNS requests and inject the captured keystroes in the DNS payload then redirect the request designated remote server acting as a DNS proxy.
+2. Intercept DNS requests and inject the captured keystroes in the DNS payload, then redirect the request to the designated remote server acting as a DNS proxy.
 3. On the remote server, extract the keys from the DNS payload and send a valid DNS response.
 4. Intercept the response and modify its source address so the initial request will complete successfully.
 
@@ -46,6 +46,14 @@ cargo build --release
 ```
 
 This will produce an executable file at `target/release/tamanoir` that you can copy to a directory in your `$PATH`
+
+#### 3. Build proxy program
+
+```
+cargo build -p tamanoir-proxy --release
+```
+
+This will produce an executable file at `target/release/tamanoir-proxy` that you can copy to a directory in your `$PATH`
 
 ### 📥 Binary release
 
@@ -85,32 +93,24 @@ Currenly, there are two supported keyboard layouts:
 
 ### DNS Proxy
 
-On a remote host, make sure you have [docker](https://docs.docker.com/engine/install/) installed.
-
-#### 1. Build proxy image
-
-```
-cd proxy
-docker build -t proxy .
-```
-
-#### 2. Run proxy
-
 > [!NOTE]
 > Make sure port 53 is available
 
 ```
-docker run --rm -it -p 53:53/udp -e PAYLOAD_LEN=8 proxy
+RUST_LOG=info sudo -E tamanoir-proxy \
+              --port <port> \
+              --dns-ip <DNS server ip> \
+              --payload-len <payload length>
 ```
 
-<br>
+for example:
 
-## 🛠️TODO
-
-- [ ] Automatic discovery of the configured local dns server
-- [ ] Automatic discovery of the keyboard layout
-- [ ] Rewrite the DNS proxy in Rust
-- [ ] Make `Tamanoir` stealth (hide used ebpf maps and programs, process pid ...)
+```
+RUST_LOG=info sudo -E tamanoir-proxy \
+              --port 53 \
+              --dns-ip 1.1.1.1 \
+              --payload-len 8
+```
 
 <br>
 

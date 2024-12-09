@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tamanoir", "tamanoir-ebpf"]
+members = ["tamanoir", "tamanoir-ebpf", "tamanoir-proxy"]
 default-members = ["tamanoir"]
 
 [workspace.dependencies]
@@ -19,4 +19,3 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
-
