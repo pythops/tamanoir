@@ -1,7 +1,9 @@
+use core::mem;
+
 use aya_ebpf::{
     helpers::{bpf_skb_load_bytes, bpf_skb_store_bytes},
     macros::map,
-    maps::Queue,
+    maps::{Queue, RingBuf},
     programs::TcContext,
 };
 use aya_log_ebpf::{debug, error, info};
@@ -41,6 +43,19 @@ pub struct KeyEvent {
 }
 #[map]
 pub static DATA: Queue<u8> = Queue::with_max_entries(4096, 0);
+
+#[repr(C)]
+pub struct RCE {
+    pub prog: u8,
+    pub active: bool,
+}
+
+impl RCE {
+    pub const LEN: usize = mem::size_of::<RCE>();
+}
+
+#[map]
+pub static RBUF: RingBuf = RingBuf::with_byte_size(8 * RCE::LEN as u32, 0);
 
 pub enum UpdateType {
     Src,
