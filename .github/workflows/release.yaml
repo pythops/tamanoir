@@ -33,12 +33,22 @@ jobs:
       - name: Build tamanoir-ebpf
         run: just build-ebpf
 
-      - name: Build for arm64 musl
+      - name: Build tamanoir-proxy for arm64 musl
+        run: |
+          CROSS_CONTAINER_ENGINE=podman cross build -p tamanoir-proxy --target aarch64-unknown-linux-musl --release
+          cp target/aarch64-unknown-linux-musl/release/tamanoir tamanoir-aarch64-unknown-linux-musl
+
+      - name: Build tamanoir-proxy for x86_64 musl
+        run: |
+          CROSS_CONTAINER_ENGINE=podman cross build -p tamanoir-proxy --target x86_64-unknown-linux-musl --release
+          cp target/x86_64-unknown-linux-musl/release/tamanoir tamanoir-x86_64-unknown-linux-musl
+
+      - name: Build tamanoir for arm64 musl
         run: |
           CROSS_CONTAINER_ENGINE=podman cross build --target aarch64-unknown-linux-musl --release
           cp target/aarch64-unknown-linux-musl/release/tamanoir tamanoir-aarch64-unknown-linux-musl
 
-      - name: Build for x86_64 musl
+      - name: Build tamanoir for x86_64 musl
         run: |
           CROSS_CONTAINER_ENGINE=podman cross build --target x86_64-unknown-linux-musl --release
           cp target/x86_64-unknown-linux-musl/release/tamanoir tamanoir-x86_64-unknown-linux-musl
