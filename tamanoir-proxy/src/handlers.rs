@@ -11,6 +11,11 @@ use tokio::{net::UdpSocket, sync::Mutex};
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
+const QDCOUNT_OFFSET: usize = 4;
+const ANCOUNT_OFFSET: usize = 6;
+const NSCOUNT_OFFSET: usize = 8;
+const AR_COUNT_OFFSET: usize = 10;
+const DNS_QUESTION_OFFSET: usize = 12;
 
 enum Layout {
     Qwerty = 0,
@@ -196,4 +201,27 @@ pub async fn forward_req(data: Vec<u8>, dns_ip: Ipv4Addr) -> Result<Vec<u8>, u8>
     let mut buf = vec![0u8; 512];
     let (len, _) = sock.recv_from(&mut buf).await.map_err(|_| 0u8)?;
     Ok(buf[..len].to_vec())
+}
+
+pub async fn add_info(data: &mut Vec<u8>, txt_data: &str) -> Result<Vec<u8>, u8> {
+    let mut n_ar = u16::from_be_bytes([data[AR_COUNT_OFFSET], data[AR_COUNT_OFFSET + 1]]);
+
+    // we add a record
+    n_ar += 1;
+    let new_ar = n_ar.to_be_bytes();
+    data[AR_COUNT_OFFSET] = new_ar[0];
+    data[AR_COUNT_OFFSET + 1] = new_ar[1];
+
+    let mut record = Vec::new();
+    record.push(0u8); // no name
+    record.extend_from_slice(&16u16.to_be_bytes()); // Type TXT
+    record.extend_from_slice(&3u16.to_be_bytes()); // Class Chaos
+
+    record.extend_from_slice(&300u32.to_be_bytes()); //TTL
+    let txt_bytes = txt_data.as_bytes();
+    record.extend_from_slice(&((txt_bytes.len() + 1) as u16).to_be_bytes()); //Data Length
+    record.push(txt_bytes.len() as u8); //TXT Length
+    record.extend_from_slice(txt_bytes); //TXT
+    data.extend(record);
+    Ok(data.clone())
 }

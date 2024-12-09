@@ -21,6 +21,7 @@ tokio = { workspace = true, features = [
   "net",
   "signal",
 ] }
+mio = { version = "1", features = ["os-poll", "os-ext"] }
 
 [[bin]]
 name = "tamanoir"

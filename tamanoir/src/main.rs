@@ -1,13 +1,14 @@
-use std::net::Ipv4Addr;
+use std::{net::Ipv4Addr, os::fd::AsRawFd, thread, time::Duration};
 
 use aya::{
     programs::{tc, KProbe, SchedClassifier, TcAttachType},
     EbpfLoader,
 };
 use clap::Parser;
-use log::{debug, warn};
+use log::{debug, info, warn};
+use mio::{unix::SourceFd, Events, Interest, Poll, Token};
+use tamanoir::ringbuf::{RingBuffer, RCE};
 use tokio::signal;
-
 #[derive(Debug, Parser)]
 struct Opt {
     #[clap(short, long, default_value = "wlan0")]
@@ -76,6 +77,46 @@ async fn main() -> anyhow::Result<()> {
     program.load()?;
     program.attach("input_handle_event", 0)?;
 
+    thread::spawn({
+        move || {
+            let mut poll = Poll::new().unwrap();
+            let mut events = Events::with_capacity(128);
+            let mut ring_buf = RingBuffer::new(&mut ebpf);
+            poll.registry()
+                .register(
+                    &mut SourceFd(&ring_buf.buffer.as_raw_fd()),
+                    Token(0),
+                    Interest::READABLE,
+                )
+                .unwrap();
+            loop {
+                poll.poll(&mut events, Some(Duration::from_millis(100)))
+                    .unwrap();
+                // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
+                //     break;
+                // }
+                for event in &events {
+                    // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
+                    //     break;
+                    // }
+                    if event.token() == Token(0) && event.is_readable() {
+                        // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
+                        //     break;
+                        // }
+                        while let Some(item) = ring_buf.next() {
+                            // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
+                            //     break;
+                            // }
+                            let rce: [u8; RCE::LEN] = item.to_owned().try_into().unwrap();
+                            let rce = rce.as_ptr() as *const RCE;
+                            let rce = unsafe { *rce };
+                            info!("{:#?}", rce);
+                        }
+                    }
+                }
+            }
+        }
+    });
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
     ctrl_c.await?;

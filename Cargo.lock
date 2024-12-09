@@ -482,6 +482,7 @@ checksum = "80e04d1dcff3aae0704555fe5fee3bcfaf3d1fdf8a7e521d5b9d2b42acb52cec"
 dependencies = [
  "hermit-abi",
  "libc",
+ "log",
  "wasi",
  "windows-sys 0.52.0",
 ]
@@ -725,6 +726,7 @@ dependencies = [
  "env_logger",
  "libc",
  "log",
+ "mio",
  "tokio",
 ]
 
