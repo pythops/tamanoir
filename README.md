@@ -47,6 +47,14 @@ cargo build --release
 
 This will produce an executable file at `target/release/tamanoir` that you can copy to a directory in your `$PATH`
 
+#### 3. Build proxy program
+
+```
+cargo build -p tamanoir-proxy --release
+```
+
+This will produce an executable file at `target/release/tamanoir-proxy` that you can copy to a directory in your `$PATH`
+
 ### 📥 Binary release
 
 You can download the pre-built binaries from the [release page](https://github.com/pythops/tamanoir/releases)
@@ -85,32 +93,24 @@ Currenly, there are two supported keyboard layouts:
 
 ### DNS Proxy
 
-On a remote host, make sure you have [docker](https://docs.docker.com/engine/install/) installed.
-
-#### 1. Build proxy image
-
-```
-cd proxy
-docker build -t proxy .
-```
-
-#### 2. Run proxy
-
 > [!NOTE]
 > Make sure port 53 is available
 
 ```
-docker run --rm -it -p 53:53/udp -e PAYLOAD_LEN=8 proxy
+RUST_LOG=info sudo -E tamanoir-proxy \
+              --port <port> \
+              --dns-ip <DNS server ip> \
+              --payload-len <payload length>
 ```
 
-<br>
+for example:
 
-## 🛠️TODO
-
-- [ ] Automatic discovery of the configured local dns server
-- [ ] Automatic discovery of the keyboard layout
-- [ ] Rewrite the DNS proxy in Rust
-- [ ] Make `Tamanoir` stealth (hide used ebpf maps and programs, process pid ...)
+```
+RUST_LOG=info sudo -E tamanoir-proxy \
+              --port 53 \
+              --dns-ip 1.1.1.1 \
+              --payload-len 8
+```
 
 <br>
 
