@@ -16,7 +16,7 @@ impl<'a> RingBuffer<'a> {
         Self { buffer }
     }
 
-    pub fn next(&mut self) -> Option<RingBufItem<'_>> {
+    pub fn _next(&mut self) -> Option<RingBufItem<'_>> {
         self.buffer.next()
     }
 }
@@ -47,11 +47,11 @@ impl Source for RingBuffer<'_> {
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub struct RCE {
+pub struct Rce {
     pub prog: u8,
     pub active: bool,
 }
 
-impl RCE {
-    pub const LEN: usize = mem::size_of::<RCE>();
+impl Rce {
+    pub const LEN: usize = mem::size_of::<Rce>();
 }

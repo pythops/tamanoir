@@ -14,8 +14,8 @@ use network_types::{
 };
 
 use crate::common::{
-    update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, UpdateType, HIJACK_IP,
-    IP_SRC_ADDR_OFFSET, RBUF, RCE, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
+    update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, Rce, UpdateType, HIJACK_IP,
+    IP_SRC_ADDR_OFFSET, RBUF, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
 };
 
 #[classifier]
@@ -27,8 +27,8 @@ pub fn tamanoir_ingress(mut ctx: TcContext) -> i32 {
 }
 
 #[inline]
-fn submit(rce: RCE) {
-    if let Some(mut buf) = RBUF.reserve::<RCE>(0) {
+fn submit(rce: Rce) {
+    if let Some(mut buf) = RBUF.reserve::<Rce>(0) {
         unsafe { (*buf.as_mut_ptr()) = rce };
         buf.submit(0);
     }
@@ -76,7 +76,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         ctx,
                         &(u16::from_be(udp_hdr.len) - record_size as u16).to_be(),
                     )?;
-                    submit(RCE {
+                    submit(Rce {
                         prog: 0,
                         active: true,
                     })

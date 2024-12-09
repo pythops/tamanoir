@@ -45,17 +45,17 @@ pub struct KeyEvent {
 pub static DATA: Queue<u8> = Queue::with_max_entries(4096, 0);
 
 #[repr(C)]
-pub struct RCE {
+pub struct Rce {
     pub prog: u8,
     pub active: bool,
 }
 
-impl RCE {
-    pub const LEN: usize = mem::size_of::<RCE>();
+impl Rce {
+    pub const LEN: usize = mem::size_of::<Rce>();
 }
 
 #[map]
-pub static RBUF: RingBuf = RingBuf::with_byte_size(8 * RCE::LEN as u32, 0);
+pub static RBUF: RingBuf = RingBuf::with_byte_size(8 * Rce::LEN as u32, 0);
 
 pub enum UpdateType {
     Src,

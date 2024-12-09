@@ -7,7 +7,7 @@ use aya::{
 use clap::Parser;
 use log::{debug, info, warn};
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
-use tamanoir::ringbuf::{RingBuffer, RCE};
+use tamanoir::ringbuf::{Rce, RingBuffer};
 use tokio::signal;
 #[derive(Debug, Parser)]
 struct Opt {
@@ -103,12 +103,12 @@ async fn main() -> anyhow::Result<()> {
                         // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
                         //     break;
                         // }
-                        while let Some(item) = ring_buf.next() {
+                        while let Some(item) = ring_buf._next() {
                             // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
                             //     break;
                             // }
-                            let rce: [u8; RCE::LEN] = item.to_owned().try_into().unwrap();
-                            let rce = rce.as_ptr() as *const RCE;
+                            let rce: [u8; Rce::LEN] = item.to_owned().try_into().unwrap();
+                            let rce = rce.as_ptr() as *const Rce;
                             let rce = unsafe { *rce };
                             info!("{:#?}", rce);
                         }

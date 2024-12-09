@@ -11,11 +11,7 @@ use tokio::{net::UdpSocket, sync::Mutex};
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
-const QDCOUNT_OFFSET: usize = 4;
-const ANCOUNT_OFFSET: usize = 6;
-const NSCOUNT_OFFSET: usize = 8;
 const AR_COUNT_OFFSET: usize = 10;
-const DNS_QUESTION_OFFSET: usize = 12;
 
 enum Layout {
     Qwerty = 0,
