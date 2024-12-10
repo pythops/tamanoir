@@ -1,0 +1,13 @@
+[package]
+name = "tamanoir-rce-hello"
+version = "0.1.0"
+edition = "2021"
+[workspace]
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1

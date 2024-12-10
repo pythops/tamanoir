@@ -1,0 +1,10 @@
+set export
+_default:
+    @just --list
+
+
+build payload :
+	cd payloads/{{payload}} && cargo  build --release
+	strip -s --strip-unneeded   payloads/{{payload}}/target/release/tamanoir-rce-{{payload}}
+	objcopy -O binary payloads/{{payload}}/target/release/tamanoir-rce-{{payload}} bins/shellcode.bin
+
