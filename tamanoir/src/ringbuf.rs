@@ -44,14 +44,26 @@ impl Source for RingBuffer<'_> {
         SourceFd(&self.buffer.as_raw_fd()).deregister(registry)
     }
 }
-
+#[derive(Clone, Debug, Copy)]
+#[repr(C)]
+pub enum ContinuationByte {
+    Reset = 0,
+    ResetEnd = 1,
+    Continue = 2,
+    End = 3,
+}
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub struct Rce {
-    pub prog: u8,
-    pub active: bool,
+pub struct RceEvent {
+    pub prog: [u8; 32],
+    pub event_type: ContinuationByte,
+    pub length: usize,
+    pub last_batch: bool,
 }
 
-impl Rce {
-    pub const LEN: usize = mem::size_of::<Rce>();
+impl RceEvent {
+    pub const LEN: usize = mem::size_of::<RceEvent>();
+    pub fn payload(&self) -> &[u8] {
+        &self.prog[..self.length]
+    }
 }

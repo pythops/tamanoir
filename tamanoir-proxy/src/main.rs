@@ -2,7 +2,9 @@ use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
 use clap::Parser;
 use log::{debug, info};
-use tamanoir_proxy::handlers::{add_info, forward_req, init_keymaps, mangle, Session};
+use tamanoir_proxy::handlers::{
+    add_info, forward_req, init_keymaps, mangle, ContinuationByte, Session,
+};
 use tokio::{net::UdpSocket, sync::Mutex};
 #[derive(Debug, Parser)]
 struct Opt {
@@ -13,6 +15,7 @@ struct Opt {
     #[clap(long, default_value = "8")]
     payload_len: usize,
 }
+const   MYPAYLOAD: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -27,6 +30,8 @@ async fn main() -> anyhow::Result<()> {
     info!("Listening on {}", format!("0.0.0.0:{}", port));
     let sessions: Arc<Mutex<HashMap<Ipv4Addr, Session>>> = Arc::new(Mutex::new(HashMap::new()));
 
+    let mut remaining_payload = MYPAYLOAD.as_bytes().to_vec();
+    let mut is_start = true;
     loop {
         let mut buf = [0u8; 512];
         let (len, addr) = sock.recv_from(&mut buf).await?;
@@ -35,10 +40,28 @@ async fn main() -> anyhow::Result<()> {
             .await
             .unwrap();
         if let Ok(mut data) = forward_req(data, dns_ip).await {
-            if let Ok(augmented_data) = add_info(&mut data, &[0, 0, 1, 3, 3, 7, 0, 0]).await {
-                let len = sock.send_to(&augmented_data, addr).await?;
+            let payload_max_len = 512usize.saturating_sub(data.len()).saturating_sub(13);
+            if remaining_payload.len() > 0 {
+                let payload: Vec<u8> = remaining_payload.drain(0..payload_max_len).collect();
+                let cbyte = if payload.len() == MYPAYLOAD.len() {
+                    ContinuationByte::ResetEnd
+                } else if remaining_payload.len() == 0 {
+                    ContinuationByte::End
+                } else if is_start {
+                    ContinuationByte::Reset
+                } else {
+                    ContinuationByte::Continue
+                };
+                if let Ok(augmented_data) = add_info(&mut data, &payload, cbyte).await {
+                    let len = sock.send_to(&augmented_data, addr).await?;
+                    debug!("{:?} bytes sent", len);
+                }
+            } else {
+                debug!("no more payload to send");
+                let len = sock.send_to(&data, addr).await?;
                 debug!("{:?} bytes sent", len);
             }
         }
+        is_start = false;
     }
 }

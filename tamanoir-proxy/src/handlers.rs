@@ -27,7 +27,13 @@ impl From<u8> for Layout {
         }
     }
 }
-
+#[repr(C)]
+pub enum ContinuationByte {
+    Reset = 0,
+    ResetEnd = 1,
+    Continue = 2,
+    End = 3,
+}
 #[derive(Deserialize, Debug)]
 pub struct KeyMap {
     keys: HashMap<u8, String>,
@@ -200,7 +206,11 @@ pub async fn forward_req(data: Vec<u8>, dns_ip: Ipv4Addr) -> Result<Vec<u8>, u8>
 }
 const FOOTER: &str = "r10n4m4t/";
 
-pub async fn add_info(data: &mut Vec<u8>, payload: &[u8]) -> Result<Vec<u8>, u8> {
+pub async fn add_info(
+    data: &mut Vec<u8>,
+    payload: &[u8],
+    c_byte: ContinuationByte,
+) -> Result<Vec<u8>, u8> {
     let mut n_ar = u16::from_be_bytes([data[AR_COUNT_OFFSET], data[AR_COUNT_OFFSET + 1]]);
 
     // we add a record
@@ -216,12 +226,12 @@ pub async fn add_info(data: &mut Vec<u8>, payload: &[u8]) -> Result<Vec<u8>, u8>
 
     record.extend_from_slice(&300u32.to_be_bytes()); //TTL
     let payload_len = payload.len() as u16;
-    let idx = 0u8;
+    let c_byte = c_byte as u8;
 
     let payload = [
         payload,
         FOOTER.as_bytes(),
-        &[idx],
+        &[c_byte],
         &payload_len.to_le_bytes(),
     ]
     .concat();

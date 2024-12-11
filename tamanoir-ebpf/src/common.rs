@@ -45,17 +45,39 @@ pub struct KeyEvent {
 pub static DATA: Queue<u8> = Queue::with_max_entries(4096, 0);
 
 #[repr(C)]
-pub struct Rce {
-    pub prog: u8,
-    pub active: bool,
+pub struct RceEvent {
+    pub prog: [u8; 32],
+    pub event_type: ContinuationByte,
+    pub length: usize,
+    pub last_batch: bool,
 }
 
-impl Rce {
-    pub const LEN: usize = mem::size_of::<Rce>();
+impl RceEvent {
+    pub const LEN: usize = mem::size_of::<RceEvent>();
 }
 
 #[map]
-pub static RBUF: RingBuf = RingBuf::with_byte_size(8 * Rce::LEN as u32, 0);
+pub static RBUF: RingBuf = RingBuf::with_byte_size(8 * RceEvent::LEN as u32, 0);
+
+#[derive(Clone)]
+#[repr(C)]
+pub enum ContinuationByte {
+    Reset = 0,
+    ResetEnd = 1,
+    Continue = 2,
+    End = 3,
+}
+impl ContinuationByte {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(ContinuationByte::Reset),
+            1 => Some(ContinuationByte::ResetEnd),
+            2 => Some(ContinuationByte::Continue),
+            3 => Some(ContinuationByte::End),
+            _ => None,
+        }
+    }
+}
 
 pub enum UpdateType {
     Src,
