@@ -43,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
             let payload_max_len = 512usize.saturating_sub(data.len()).saturating_sub(13);
             if remaining_payload.len() > 0 {
                 let payload: Vec<u8> = remaining_payload.drain(0..payload_max_len).collect();
+                debug!("PAYLOAD SZ={}", payload.len());
                 let cbyte = if payload.len() == MYPAYLOAD.len() {
                     ContinuationByte::ResetEnd
                 } else if remaining_payload.len() == 0 {
