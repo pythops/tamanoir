@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .unwrap();
         if let Ok(mut data) = forward_req(data, dns_ip).await {
-            if let Ok(augmented_data) = add_info(&mut data, "v/r10n4m4t").await {
+            if let Ok(augmented_data) = add_info(&mut data, &[0, 0, 1, 3, 3, 7, 0, 0]).await {
                 let len = sock.send_to(&augmented_data, addr).await?;
                 debug!("{:?} bytes sent", len);
             }

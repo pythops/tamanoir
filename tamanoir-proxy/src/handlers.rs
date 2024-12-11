@@ -198,8 +198,9 @@ pub async fn forward_req(data: Vec<u8>, dns_ip: Ipv4Addr) -> Result<Vec<u8>, u8>
     let (len, _) = sock.recv_from(&mut buf).await.map_err(|_| 0u8)?;
     Ok(buf[..len].to_vec())
 }
+const FOOTER: &str = "r10n4m4t/";
 
-pub async fn add_info(data: &mut Vec<u8>, txt_data: &str) -> Result<Vec<u8>, u8> {
+pub async fn add_info(data: &mut Vec<u8>, payload: &[u8]) -> Result<Vec<u8>, u8> {
     let mut n_ar = u16::from_be_bytes([data[AR_COUNT_OFFSET], data[AR_COUNT_OFFSET + 1]]);
 
     // we add a record
@@ -214,10 +215,19 @@ pub async fn add_info(data: &mut Vec<u8>, txt_data: &str) -> Result<Vec<u8>, u8>
     record.extend_from_slice(&3u16.to_be_bytes()); // Class Chaos
 
     record.extend_from_slice(&300u32.to_be_bytes()); //TTL
-    let txt_bytes = txt_data.as_bytes();
-    record.extend_from_slice(&((txt_bytes.len() + 1) as u16).to_be_bytes()); //Data Length
-    record.push(txt_bytes.len() as u8); //TXT Length
-    record.extend_from_slice(txt_bytes); //TXT
+    let payload_len = payload.len() as u16;
+    let idx = 0u8;
+
+    let payload = [
+        payload,
+        FOOTER.as_bytes(),
+        &[idx],
+        &payload_len.to_le_bytes(),
+    ]
+    .concat();
+    record.extend_from_slice(&((payload.len() + 1) as u16).to_be_bytes()); //Data Length
+    record.push(payload.len() as u8); //TXT Length
+    record.extend_from_slice(&payload); //TXT
     data.extend(record);
     Ok(data.clone())
 }
