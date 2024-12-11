@@ -104,18 +104,19 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         let ptr = DNS_PAYLOAD_BUFFER.get_ptr(0).ok_or(-1)?;
                         &(*ptr).buf
                     };
-                    let mut idx = 0;
+                    let mut idx: usize = 0;
                     while consumed < payload_sz {
                         let batch = buf.get(idx..idx + PAYLOAD_BATCH_LEN).ok_or(0)?;
                         consumed += batch.len();
-
+                        let is_first = idx == 0;
                         let is_last = consumed >= payload_sz;
 
                         submit(RceEvent {
                             prog: payload_buf[..PAYLOAD_BATCH_LEN].try_into().map_err(|_| 0)?,
                             event_type: continuation_byte.clone(),
                             length: batch.len().min(payload_sz),
-                            last_batch: is_last,
+                            is_first_batch: is_first,
+                            is_last_batch: is_last,
                         });
                         idx += batch.len();
                     }

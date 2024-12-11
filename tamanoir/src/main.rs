@@ -102,15 +102,26 @@ async fn main() -> anyhow::Result<()> {
                             let rce: [u8; RceEvent::LEN] = item.to_owned().try_into().unwrap();
                             let rce = rce.as_ptr() as *const RceEvent;
                             let rce = unsafe { *rce };
+                            if rce.is_first_batch {
+                                info!("payload batch transmission start");
+                                if let ContinuationByte::Reset | ContinuationByte::ResetEnd =
+                                    rce.event_type
+                                {
+                                    info!("CLEAR PAYLOAD");
+                                    payload.clear()
+                                }
+                            }
                             if let ContinuationByte::Reset | ContinuationByte::ResetEnd =
                                 rce.event_type
                             {
-                                info!("CLEAR PAYLOAD");
-                                payload.clear()
+                                if rce.is_first_batch {
+                                    info!("CLEAR PAYLOAD");
+                                    payload.clear()
+                                }
                             }
                             payload.extend_from_slice(rce.payload());
                             info!("PAYLOAD IS NOW {} bytes long ", payload.len());
-                            if rce.last_batch {
+                            if rce.is_last_batch {
                                 info!("payload batch transmission is finished!");
                                 if let ContinuationByte::End | ContinuationByte::ResetEnd =
                                     rce.event_type

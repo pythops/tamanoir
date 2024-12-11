@@ -58,7 +58,8 @@ pub struct RceEvent {
     pub prog: [u8; 32],
     pub event_type: ContinuationByte,
     pub length: usize,
-    pub last_batch: bool,
+    pub is_first_batch: bool,
+    pub is_last_batch: bool,
 }
 
 impl RceEvent {
