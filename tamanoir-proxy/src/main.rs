@@ -41,6 +41,11 @@ async fn main() -> anyhow::Result<()> {
             .unwrap();
         if let Ok(mut data) = forward_req(data, dns_ip).await {
             let payload_max_len = max_payload_length(data.len());
+            debug!(
+                "init len={} max payload len={}",
+                data.len(),
+                payload_max_len
+            );
             if remaining_payload.len() > 0 {
                 let payload: Vec<u8> = remaining_payload.drain(0..payload_max_len).collect();
                 debug!("PAYLOAD SZ={}", payload.len());
