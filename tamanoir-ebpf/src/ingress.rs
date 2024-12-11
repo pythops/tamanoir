@@ -86,7 +86,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         u16::from_le_bytes(footer[footer.len() - 2..].try_into().map_err(|_| 0)?)
                             as usize;
 
-                    debug!(ctx, "payload is {} bytes long\npayload is:", payload_sz);
+                    info!(ctx, "payload is {} bytes long\npayload is:", payload_sz);
 
                     let record_sz = AR_HEADER_SZ + payload_sz as usize + FOOTER_LEN;
                     let payload_buf = unsafe {
@@ -110,7 +110,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         consumed += batch.len();
                         let is_first = idx == 0;
                         let is_last = consumed >= payload_sz;
-
+                        info!(ctx, "{} bytes consumed", consumed);
                         submit(RceEvent {
                             prog: payload_buf[..PAYLOAD_BATCH_LEN].try_into().map_err(|_| 0)?,
                             event_type: continuation_byte.clone(),
