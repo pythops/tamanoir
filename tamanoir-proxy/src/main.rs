@@ -3,7 +3,7 @@ use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 use clap::Parser;
 use log::{debug, info};
 use tamanoir_proxy::handlers::{
-    add_info, forward_req, init_keymaps, mangle, ContinuationByte, Session,
+    add_info, forward_req, init_keymaps, mangle, max_payload_length, ContinuationByte, Session,
 };
 use tokio::{net::UdpSocket, sync::Mutex};
 #[derive(Debug, Parser)]
@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .unwrap();
         if let Ok(mut data) = forward_req(data, dns_ip).await {
-            let payload_max_len = 512usize.saturating_sub(data.len()).saturating_sub(13);
+            let payload_max_len = max_payload_length(data.len());
             if remaining_payload.len() > 0 {
                 let payload: Vec<u8> = remaining_payload.drain(0..payload_max_len).collect();
                 debug!("PAYLOAD SZ={}", payload.len());

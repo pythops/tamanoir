@@ -12,7 +12,16 @@ use tokio::{net::UdpSocket, sync::Mutex};
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 const AR_COUNT_OFFSET: usize = 10;
+const AR_HEADER_LEN: usize = 12;
+const FOOTER_TXT: &str = "r10n4m4t/";
+const FOOTER_EXTRA_BYTES: usize = 3;
+const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
 
+pub fn max_payload_length(current_dns_packet_size: usize) -> usize {
+    512usize
+        .saturating_sub(current_dns_packet_size)
+        .saturating_sub(FOOTER_LEN + AR_HEADER_LEN)
+}
 enum Layout {
     Qwerty = 0,
     Azerty = 1,
@@ -204,7 +213,6 @@ pub async fn forward_req(data: Vec<u8>, dns_ip: Ipv4Addr) -> Result<Vec<u8>, u8>
     let (len, _) = sock.recv_from(&mut buf).await.map_err(|_| 0u8)?;
     Ok(buf[..len].to_vec())
 }
-const FOOTER: &str = "r10n4m4t/";
 
 pub async fn add_info(
     data: &mut Vec<u8>,
@@ -230,7 +238,7 @@ pub async fn add_info(
 
     let payload = [
         payload,
-        FOOTER.as_bytes(),
+        FOOTER_TXT.as_bytes(),
         &[c_byte],
         &payload_len.to_le_bytes(),
     ]
