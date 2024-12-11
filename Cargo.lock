@@ -720,8 +720,27 @@ dependencies = [
  "libc",
  "log",
  "mio",
+ "tamanoir-common",
  "tokio",
 ]
+
+[[package]]
+name = "tamanoir-c2"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "log",
+ "serde",
+ "serde_yaml",
+ "tamanoir-common",
+ "tokio",
+]
+
+[[package]]
+name = "tamanoir-common"
+version = "0.0.0"
 
 [[package]]
 name = "tamanoir-ebpf"
@@ -731,24 +750,8 @@ dependencies = [
  "aya-log-ebpf",
  "flex-dns",
  "network-types",
+ "tamanoir-common",
 ]
-
-[[package]]
-name = "tamanoir-proxy"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "env_logger",
- "log",
- "serde",
- "serde_yaml",
- "tokio",
-]
-
-[[package]]
-name = "tamanoir-rce"
-version = "0.1.0"
 
 [[package]]
 name = "thiserror"

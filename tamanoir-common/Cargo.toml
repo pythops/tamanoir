@@ -1,0 +1,11 @@
+[package]
+name = "tamanoir-common"
+description = "tamanoir common"
+
+
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+

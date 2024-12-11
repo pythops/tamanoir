@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tamanoir", "tamanoir-ebpf", "tamanoir-proxy","tamanoir-rce"]
+members = ["tamanoir", "tamanoir-ebpf", "tamanoir-c2","tamanoir-common"]
 default-members = ["tamanoir"]
 
 [workspace.dependencies]

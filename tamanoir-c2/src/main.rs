@@ -2,9 +2,10 @@ use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
 use clap::Parser;
 use log::{debug, info};
-use tamanoir_proxy::handlers::{
-    add_info, forward_req, init_keymaps, mangle, max_payload_length, ContinuationByte, Session,
+use tamanoir_c2::handlers::{
+    add_info, forward_req, init_keymaps, mangle, max_payload_length, Session,
 };
+use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
 #[derive(Debug, Parser)]
 struct Opt {

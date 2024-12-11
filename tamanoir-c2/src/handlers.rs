@@ -7,6 +7,7 @@ use std::{
 
 use log::{debug, info, log_enabled, Level};
 use serde::Deserialize;
+use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
@@ -36,13 +37,7 @@ impl From<u8> for Layout {
         }
     }
 }
-#[repr(C)]
-pub enum ContinuationByte {
-    Reset = 0,
-    ResetEnd = 1,
-    Continue = 2,
-    End = 3,
-}
+
 #[derive(Deserialize, Debug)]
 pub struct KeyMap {
     keys: HashMap<u8, String>,

