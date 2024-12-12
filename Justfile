@@ -30,8 +30,8 @@ run proxy_ip hijack_ip="8.8.8.8" layout="1" log_level="info":
 proxy dns_ip="8.8.8.8" port="53" payload_len="8" log_level="info" rce="hello" target_arch="x86_64":
     RUST_LOG={{log_level}} sudo -E ./target/release/tamanoir-c2  --port {{port}} \
     --dns-ip {{dns_ip}} \
-    --payload-len {{payload_len}}\
-    --rce {{rce}}
+    --payload-len {{payload_len}} \
+    --rce {{rce}} \
     --target_arch {{target_arch}}
 
 _atoi ipv4_address:
