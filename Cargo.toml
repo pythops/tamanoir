@@ -17,6 +17,8 @@ tokio = { version = "1", default-features = false }
 
 [profile.dev]
 panic = "abort"
+debug = true  # This is the default, but you can specify it explicitly
+opt-level = 0 
 
 [profile.release]
 panic = "abort"

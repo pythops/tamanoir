@@ -115,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
                             }
 
                             payload.extend_from_slice(rce.payload());
-                            info!("PAYLOAD IS NOW {} bytes long ", payload.len());
+                            debug!("transmitted payload is now {} bytes long ", payload.len());
                             if rce.is_last_batch {
                                 debug!("payload batch transmission is finished!");
                                 if let ContinuationByte::End | ContinuationByte::ResetEnd =

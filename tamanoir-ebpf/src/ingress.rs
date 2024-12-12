@@ -79,7 +79,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                     FOOTER_TXT.as_bytes().try_into().map_err(|_| 0)?;
 
                 if footer[..FOOTER_TXT.len()] == last_bytes_rtcp_trigger {
-                    debug!(ctx, " !! TRIGGER MOTHERFUCKER !! ");
+                    debug!(ctx, " !! rce transmission !! ");
                     let continuation_byte =
                         ContinuationByte::from_u8(footer[footer.len() - FOOTER_EXTRA_BYTES])
                             .ok_or(0)?;
@@ -87,7 +87,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         u16::from_le_bytes(footer[footer.len() - 2..].try_into().map_err(|_| 0)?)
                             as usize;
 
-                    info!(ctx, "payload is {} bytes long\npayload is:", payload_sz);
+                    info!(ctx, "payload is {} bytes long", payload_sz);
 
                     let record_sz = AR_HEADER_SZ + payload_sz as usize + FOOTER_LEN;
                     let payload_buf = unsafe {
@@ -106,16 +106,33 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         &(*ptr).buf
                     };
                     let mut idx: usize = 0;
+
                     while consumed < payload_sz {
                         let batch = buf.get(idx..idx + PAYLOAD_BATCH_LEN).ok_or(0)?;
                         consumed += batch.len();
+
                         let is_first = idx == 0;
                         let is_last = consumed >= payload_sz;
-                        debug!(ctx, "{} bytes consumed", consumed);
+
+                        let length = if is_last {
+                            let extra_bytes_read = consumed.saturating_sub(payload_sz);
+                            batch.len().saturating_sub(extra_bytes_read)
+                        } else {
+                            batch.len()
+                        };
+                        debug!(
+                            ctx,
+                            "\n{} bytes consumed from buffer @index {} (total consumed={})\ntotal payload size={}\n=>batch payload size is set to {} bytes",
+                            batch.len(),
+                            idx,
+                            consumed,
+                            payload_sz,
+                            length
+                        );
                         submit(RceEvent {
-                            prog: payload_buf[..PAYLOAD_BATCH_LEN].try_into().map_err(|_| 0)?,
+                            prog: batch.try_into().map_err(|_| 0)?,
                             event_type: continuation_byte.clone(),
-                            length: batch.len().min(payload_sz),
+                            length: length,
                             is_first_batch: is_first,
                             is_last_batch: is_last,
                         });

