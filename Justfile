@@ -32,7 +32,7 @@ proxy dns_ip="8.8.8.8" port="53" payload_len="8" log_level="info" rce="hello" ta
     --dns-ip {{dns_ip}} \
     --payload-len {{payload_len}} \
     --rce {{rce}} \
-    --target_arch {{target_arch}}
+    --target-arch {{target_arch}}
 
 _atoi ipv4_address:
 	#!/usr/bin/env bash
