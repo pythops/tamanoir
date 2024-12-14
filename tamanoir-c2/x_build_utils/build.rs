@@ -1,7 +1,7 @@
 use std::process::Command;
 
 #[cfg(target_arch = "x86_64")]
-fn build() {
+fn build_x86_64() {
     let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
     let base_path = "target/x86_64-unknown-linux-gnu/release";
     let elf_path = format!("{}/{}", base_path, binary_name);
@@ -38,5 +38,6 @@ fn build() {
 }
 
 fn main() {
-    build()
+    #[cfg(target_arch = "x86_64")]
+    build_x86_64()
 }
