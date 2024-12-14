@@ -14,15 +14,15 @@ _check_target t :
     if [ $found = 0 ];then echo "$t should belong to authorized values: {{available_target}} " && exit 1;fi
 
 _clean crate_path="":
-    rm -rf {{crate_path}}/target
-    rm -f {{crate_path}}/build.rs
+    @echo "cleaning"
+    @rm -rf {{crate_path}}/target
+    @rm -f {{crate_path}}/build.rs
 
 
 _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
     @just _check_target {{target}}
     @echo "installing dependencies"
     @cargo install cross --git https://github.com/cross-rs/cross
-    @test [ "x86_64" = {{target}} ] && sudo apt install -y binutils-x86-64-linux-gnu
     @if [ -e ./x_build_utils/Cross_{{target}}.toml ];then cp ./x_build_utils/Cross_{{target}}.toml {{crate_path}}/Cross.toml;fi
     @echo "start x compilation with cross to target $target"
     @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
@@ -30,7 +30,6 @@ _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
     @cp ./x_build_utils/build.rs {{crate_path}}
     @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
     @cp  {{crate_path}}/target/release/{{bin_name}}_{{target}}.bin ./src/bins/{{bin_name}}_{{target}}.bin
-    @echo "cleaning"
     @just _clean {{crate_path}}
   
 
