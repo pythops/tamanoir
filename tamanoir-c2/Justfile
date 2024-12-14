@@ -13,25 +13,33 @@ _check_target t :
     @for x in {{available_target}};do if [ "$t" = "$x" ];then found=1;break;else found=0 ;fi;done &&\
     if [ $found = 0 ];then echo "$t should belong to authorized values: {{available_target}} " && exit 1;fi
 
+_clean crate_path="":
+    rm -rf {{crate_path}}/target
+    rm -f {{crate_path}}/build.rs
 
 
 _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
     @just _check_target {{target}}
-    @echo "start x compilation with cross to target $target"
+    @echo "installing dependencies"
     @cargo install cross --git https://github.com/cross-rs/cross
-    @if [ "$(uname -m)" = "aarch64" ] && [ "$target" = "x86_64" ];then cp ./payloads/aarch64_to_x86_64_utils/Cross.toml {{crate_path}};fi
+    @test [ "x86_64" = {{target}} ] && sudo apt install -y binutils-x86-64-linux-gnu
+    @if [ -e ./x_build_utils/Cross_{{target}}.toml ];then cp ./x_build_utils/Cross_{{target}}.toml {{crate_path}}/Cross.toml;fi
+    @echo "start x compilation with cross to target $target"
     @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
-    @if [ "$(uname -m)" = "aarch64" ] && [ "$target" = "x86_64" ];then cp ./payloads/aarch64_to_x86_64_utils/build.rs {{crate_path}};fi //run POST BUILD SCRIPTS
+    @echo "run post install scripts with cross"
+    @cp ./x_build_utils/build.rs {{crate_path}}
     @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
     @cp  {{crate_path}}/target/release/{{bin_name}}_{{target}}.bin ./src/bins/{{bin_name}}_{{target}}.bin
-
+    @echo "cleaning"
+    @just _clean {{crate_path}}
   
 
 _compile  bin_name="" crate_path=""  build_vars= "":
     @echo "start  compilation  to target $target"
-    @cd {{crate_path}} && {{build_vars}} cargo build  --release
+    @cd {{crate_path}} && {{build_vars}} cargo build --release
     @strip -s --strip-unneeded   {{crate_path}}/target/release/{{bin_name}}
     @objcopy -O binary {{crate_path}}/target/release/{{bin_name}} ./src/bins/{{bin_name}}_$(uname -m).bin
+    @just _clean {{crate_path}}
 
 build  bin_name="" crate_path="" target="x86_64"  build_vars= "":
     @just _check_target {{target}}

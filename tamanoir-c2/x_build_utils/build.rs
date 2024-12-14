@@ -1,17 +1,11 @@
 use std::process::Command;
-
+//!!ITS A POST BUILD SCRIPT!!
+#[cfg(target_arch = "x86_64")]
 fn main() {
-    //!!ITS A POST BUILD SCRIPT!!
-
-    let target_arch =
-        std::env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH not set");
-
+  
     let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
-    let elf_path = format!(
-        "target/{}-unknown-linux-gnu/release/{}",
-        target_arch, binary_name
-    );
-    let bin_path = format!("target/release/{}_x86.bin", binary_name);
+    let elf_path = format!("target/x86_64-unknown-linux-gnu/release/{}", binary_name);
+    let bin_path = format!("target/release/{}_x86_64.bin", binary_name);
 
     let output = Command::new("x86_64-linux-gnu-strip")
         .arg("-s")
