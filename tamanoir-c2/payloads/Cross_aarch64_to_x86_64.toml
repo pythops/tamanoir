@@ -1,7 +1,7 @@
 [target.x86_64-unknown-linux-gnu]
 pre-build = [
     # Install the cross compiler
-    "apt-get update && apt-get install -y libc6 g++-x86-64-linux-gnu libc6-dev-amd64-cross gcc",
+    "apt-get update && apt-get install -y libc6 g++-x86-64-linux-gnu libc6-dev-amd64-cross gcc binutils-x86-64-linux-gnu",
 ]
 
 [target.x86_64-unknown-linux-gnu.env]
