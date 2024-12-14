@@ -1,0 +1,7 @@
+set export
+_default:
+    @just --list
+build  name="" crate_path="" target="x86_64" engine="docker" build_vars= "":
+    cd {{crate_path}} && CROSS_CONTAINER_ENGINE={{engine}} {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release
+    strip -s --strip-unneeded   {{crate_path}}/target/release/{{name}}
+    objcopy -O binary {{crate_path}}/target/release/{{name}} bins/{{name}}_{{target}}.bin
