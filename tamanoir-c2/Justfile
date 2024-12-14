@@ -29,7 +29,7 @@ _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
     @echo "run post install scripts with cross"
     @cp ./x_build_utils/build.rs {{crate_path}}
     @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
-    @cp  {{crate_path}}/target/release/{{bin_name}}_{{target}}.bin ./src/bins/{{bin_name}}_{{target}}.bin
+    @cp  {{crate_path}}/target/{{target}}-unknown-linux-gnu/release/{{bin_name}}_{{target}}.bin ./src/bins/{{bin_name}}_{{target}}.bin
     @just _clean {{crate_path}}
   
 
