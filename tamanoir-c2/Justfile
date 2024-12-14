@@ -3,25 +3,38 @@ _default:
     @just --list
 
 cross_engine:="docker"
+available_target := "x86_64 aarch64"
 
 _should_x_compile target="x86_64":
     @[ "$(uname -m)" = {{target}} ]&& echo false || echo true
 
 
+_check_target t :
+    @for x in {{available_target}};do if [ "$t" = "$x" ];then found=1;break;else found=0 ;fi;done &&\
+    if [ $found = 0 ];then echo "$t should belong to authorized values: {{available_target}} " && exit 1;fi
+
+
+
 _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
+    @just _check_target {{target}}
     @echo "start x compilation with cross to target $target"
     @cargo install cross --git https://github.com/cross-rs/cross
     @if [ "$(uname -m)" = "aarch64" ] && [ "$target" = "x86_64" ];then cp ./payloads/Cross_aarch64_to_x86_64.toml {{crate_path}}/Cross.toml;fi
-    @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}} {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
+    @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  {{build_vars}} cross build --target {{target}}-unknown-linux-gnu --release 
+    @cp  {{crate_path}}/target/release/{{bin_name}}.bin ./src/bins/{{bin_name}}_{{target}}.bin
+
+  
 
 _compile  bin_name="" crate_path=""  build_vars= "":
     @echo "start  compilation  to target $target"
     @cd {{crate_path}} && {{build_vars}} cargo build  --release
+    @strip -s --strip-unneeded   {{crate_path}}/target/release/{{bin_name}}
+    @objcopy -O binary {{crate_path}}/target/release/{{bin_name}} ./src/bins/{{bin_name}}_$(uname -m).bin
 
 build  bin_name="" crate_path="" target="x86_64"  build_vars= "":
+    @just _check_target {{target}}
     @if [ "$(just _should_x_compile $target)" = "true" ];\
         then just _x_compile {{bin_name}} {{crate_path}} {{target}} "{{build_vars}}";\
         else just _compile {{bin_name}} {{crate_path}} "{{build_vars}}" ;\
     fi
-    @strip -s --strip-unneeded   {{crate_path}}/target/release/{{bin_name}}
-    @objcopy -O binary {{crate_path}}/target/release/{{bin_name}} ./src/bins/{{bin_name}}_{{target}}.bin
+    
