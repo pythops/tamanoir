@@ -10,7 +10,7 @@ fn main() {
         "target/{}-unknown-linux-gnu/release/{}",
         target_arch, binary_name
     );
-    let bin_path = format!("target/release/{}.bin", binary_name);
+    let bin_path = format!("target/release/{}_x86.bin", binary_name);
 
     let output = Command::new("x86_64-linux-gnu-strip")
         .arg("-s")
