@@ -53,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
             crate_path,
             build_vars,
         } => {
-            build(crate_path, engine, target_arch, build_vars);
+            build(crate_path, engine, target_arch, build_vars).unwrap();
         }
         Command::Start {
             port,

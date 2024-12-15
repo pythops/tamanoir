@@ -140,13 +140,19 @@ pub async fn add_info(
     Ok(data.clone())
 }
 
-pub fn build(crate_path: String, engine: Engine, target: TargetArch, build_vars: String) {
+pub fn build(
+    crate_path: String,
+    engine: Engine,
+    target: TargetArch,
+    build_vars: String,
+) -> Result<(), String> {
     let current_arch = env::consts::ARCH;
     let crate_path = crate_path;
     let should_x_compile = TargetArch::from_str(current_arch).unwrap() == target;
     if should_x_compile {
-        x_compile(engine, crate_path, target, build_vars).unwrap();
+        let _ = x_compile(engine, crate_path, target, build_vars)?;
     } else {
-        compile(crate_path, build_vars).unwrap();
+        let _ = compile(crate_path, build_vars)?;
     }
+    Ok(())
 }

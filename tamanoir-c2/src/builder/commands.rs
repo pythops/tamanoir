@@ -14,7 +14,9 @@ impl Cmd {
         let mut program = Command::new(&self.shell);
         let prog: &mut Command = program.arg("-c").arg(&cmd);
 
-        let output = prog.output().expect(&format!("Failed to run {}", cmd));
+        let output = prog
+            .output()
+            .map_err(|_| format!("Failed to run {}", cmd))?;
         io::stdout().write_all(&output.stdout).unwrap();
         io::stderr().write_all(&output.stderr).unwrap();
         if !output.status.success() {
