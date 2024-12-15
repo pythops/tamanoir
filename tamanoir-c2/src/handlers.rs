@@ -148,7 +148,7 @@ pub fn build(
 ) -> Result<(), String> {
     let current_arch = env::consts::ARCH;
     let crate_path = crate_path;
-    let should_x_compile = TargetArch::from_str(current_arch).unwrap() == target;
+    let should_x_compile = TargetArch::from_str(current_arch).unwrap() != target;
     if should_x_compile {
         let _ = x_compile(engine, crate_path, target, build_vars)?;
     } else {
