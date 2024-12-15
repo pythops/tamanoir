@@ -28,7 +28,7 @@ _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
     @cargo install cross --git https://github.com/cross-rs/cross
     @if [ -e ./x_build_utils/Cross_{{target}}.toml ];then cp ./x_build_utils/Cross_{{target}}.toml {{crate_path}}/Cross.toml;fi
     @echo "start x compilation with cross to target $target"
-    @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}} CROSS_CONTAINER_OPTS="$(just _format_cross_args {{build_vars}} )"  cross build --target {{target}}-unknown-linux-gnu --release -v
+    @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}} CROSS_CONTAINER_OPTS='"'$(just _format_cross_args {{build_vars}} )'"'  cross build --target {{target}}-unknown-linux-gnu --release -v
     @echo "run post install scripts with cross"
     @cp ./x_build_utils/build.rs {{crate_path}}
     @cd {{crate_path}} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={{cross_engine}}  cross build --target {{target}}-unknown-linux-gnu --release 
