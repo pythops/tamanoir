@@ -17,6 +17,7 @@ _clean crate_path="":
     @echo "cleaning"
     @rm -rf {{crate_path}}/target
     @rm -f {{crate_path}}/build.rs
+    @rm -f {{crate_path}}/Cross.toml
 
 
 _x_compile bin_name="" crate_path="" target="x86_64" build_vars= "":
@@ -46,10 +47,3 @@ build  bin_name="" crate_path="" target="x86_64"  build_vars= "":
         then just _x_compile {{bin_name}} {{crate_path}} {{target}} "{{build_vars}}";\
         else just _compile {{bin_name}} {{crate_path}} "{{build_vars}}" ;\
     fi
-    
-    
-    
-
-
-
-    
