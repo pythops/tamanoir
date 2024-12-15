@@ -30,8 +30,7 @@ pub fn x_compile(
     };
 
     info!("installing dependencies");
-    let cmd0 = format!("cargo install cross --git https://github.com/cross-rs/cross;\
-        if [ -e ./x_build_utils/Cross_{}.toml ];then cp ./x_build_utils/Cross_{}.toml {}/Cross.toml;fi",target,target,crate_path);
+    let cmd0 = format!("cargo install cross --git https://github.com/cross-rs/cross;if [ -e ./x_build_utils/Cross_{}.toml ];then cp ./x_build_utils/Cross_{}.toml {}/Cross.toml;fi",target,target,crate_path);
     cmd.exec(cmd0)?;
 
     info!("start x compilation with cross to target {}", target);
@@ -58,10 +57,7 @@ pub fn compile(crate_path: String, build_vars: String) -> Result<(), String> {
     };
 
     info!("start  compilation of {}", bin_name);
-    let cmd0 = format!(
-        "cd {} && {} && cargo build --release",
-        crate_path, build_vars
-    );
+    let cmd0 = format!("cd {} && {}  cargo build --release", crate_path, build_vars);
     cmd.exec(cmd0).unwrap();
 
     info!("start  post-build opertaions");
