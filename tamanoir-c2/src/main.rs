@@ -53,7 +53,9 @@ async fn main() -> anyhow::Result<()> {
             crate_path,
             build_vars,
         } => {
-            build(crate_path, engine, target_arch, build_vars).unwrap();
+            if let Err(_) = build(crate_path, engine, target_arch, build_vars) {
+                std::process::exit(1);
+            }
         }
         Command::Start {
             port,
