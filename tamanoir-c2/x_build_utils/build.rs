@@ -1,5 +1,4 @@
-use std::process::Command;
-
+use std::{env, process::Command};
 #[cfg(target_arch = "x86_64")]
 fn build_x86_64() {
     let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
