@@ -4,7 +4,7 @@ fn main() {
     let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
     let target_arch =
         std::env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH not set");
-    let base_path = format("target/{}-unknown-linux-gnu/release", target_arch);
+    let base_path = format!("target/{}-unknown-linux-gnu/release", target_arch);
     let elf_path = format!("{}/{}", base_path, binary_name);
     let bin_path = format!("{}/{}_{}.bin", base_path, binary_name, target_arch);
 
