@@ -38,6 +38,10 @@ fn build_x86_64() {
 }
 
 fn main() {
+    println!(
+        "{}",
+        env::var("CARGO_BUILD_TARGET").unwrap_or_else(|_| "unknown".to_string())
+    );
     #[cfg(target_arch = "x86_64")]
     build_x86_64()
 }
