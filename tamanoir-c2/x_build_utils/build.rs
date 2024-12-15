@@ -1,12 +1,14 @@
 use std::{env, process::Command};
-#[cfg(target_arch = "x86_64")]
-fn build_x86_64() {
-    let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
-    let base_path = "target/x86_64-unknown-linux-gnu/release";
-    let elf_path = format!("{}/{}", base_path, binary_name);
-    let bin_path = format!("{}/{}_x86_64.bin", base_path, binary_name);
 
-    let output = Command::new("x86_64-linux-gnu-strip")
+fn main() {
+    let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
+    let target_arch =
+        std::env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH not set");
+    let base_path = format("target/{}-unknown-linux-gnu/release", target_arch);
+    let elf_path = format!("{}/{}", base_path, binary_name);
+    let bin_path = format!("{}/{}_{}.bin", base_path, binary_name, target_arch);
+
+    let output = Command::new(format!("{}-linux-gnu-strip", target_arch))
         .arg("-s")
         .arg("--strip-unneeded")
         .arg(&elf_path)
@@ -20,7 +22,7 @@ fn build_x86_64() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    let output = Command::new("x86_64-linux-gnu-objcopy")
+    let output = Command::new(format!("{}-linux-gnu-objcopy", target_arch))
         .arg("-O")
         .arg("binary")
         .arg(&elf_path)
@@ -34,13 +36,4 @@ fn build_x86_64() {
             String::from_utf8_lossy(&output.stderr)
         )
     }
-}
-
-fn main() {
-    println!(
-        "{}",
-        env::var("CARGO_BUILD_TARGET").unwrap_or_else(|_| "unknown".to_string())
-    );
-    #[cfg(target_arch = "x86_64")]
-    build_x86_64()
 }
