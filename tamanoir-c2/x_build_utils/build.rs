@@ -1,4 +1,4 @@
-use std::{env, process::Command};
+use std::process::Command;
 
 fn main() {
     let binary_name = std::env::var("CARGO_PKG_NAME").expect("CARGO_PKG_NAME not set");
