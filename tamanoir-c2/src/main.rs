@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
 use clap::{Parser, Subcommand};
-use log::{debug, info};
+use log::{debug, error, info};
 use tamanoir_c2::{
     builder::build,
     handlers::{add_info, forward_req, init_keymaps, mangle, max_payload_length},
@@ -58,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
             out_dir,
         } => {
             if let Err(e) = build(crate_path, engine, target_arch, build_vars, out_dir) {
-                error!(e);
+                error!("{}", e);
                 std::process::exit(1);
             }
         }
