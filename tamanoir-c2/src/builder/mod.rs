@@ -37,7 +37,7 @@ pub fn x_compile(
     let cmd = Cmd {
         shell: "/bin/bash".into(),
     };
-    init_utils_files();
+    init_utils_files()?;
     let build_vars_formatted = format_build_vars_for_cross(build_vars)?;
     let bin_name = parse_package_name(crate_path.clone())?;
 
