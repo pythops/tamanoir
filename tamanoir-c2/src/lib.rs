@@ -22,7 +22,7 @@ const FOOTER_EXTRA_BYTES: usize = 3;
 const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
 
 const HELLO_X86_64: &[u8] = include_bytes!("../bins/hello_x86_64.bin");
-const REVERSE_SHELL_X86_64: &[u8] = include_bytes!("../bins/reverse_shell_x86_64.bin");
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TargetArch {
     X86_64,
@@ -181,7 +181,7 @@ pub fn select_payload(rce: String, target_arch: TargetArch) -> Option<Vec<u8>> {
     }
     let payload = match &*rce {
         "hello" => Some(HELLO_X86_64.to_vec()),
-        "reverse_shell" => Some(REVERSE_SHELL_X86_64.to_vec()),
+
         _ => None,
     };
     payload
