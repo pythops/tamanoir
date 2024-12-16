@@ -59,7 +59,7 @@ pub fn parse_package_name(crate_path: String) -> Result<String, String> {
 pub fn format_env_arg(s: &str) -> Result<String, String> {
     if let Some(eq_pos) = s.find('=') {
         let (key, value) = s.split_at(eq_pos);
-        if !key.is_empty() && !value.is_empty() {
+        if key.is_empty() || value.is_empty() {
             return Err(format!("{} should follow key=value pattern", s));
         } else {
             return Ok(format!("--env {}={}", key.trim(), value.trim()));
