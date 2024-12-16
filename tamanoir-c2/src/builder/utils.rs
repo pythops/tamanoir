@@ -17,17 +17,11 @@ const CROSS_X86_64_TOML: &str = include_str!("../../x_build_utils/Cross_x86_64.t
 
 pub fn init_utils_files() -> Result<(), String> {
     let mut map = HashMap::<String, &str>::new();
-
-    map.insert("build.rs".into(), BUILD_RS)
-        .ok_or(format!("Error fetching {}", "x_build_utils / build.rs"))?;
-    map.insert("Cross_x86_64.toml".into(), CROSS_X86_64_TOML)
-        .ok_or(format!(
-            "Error fetching {}",
-            "x_build_utils / Cross_x86_64.toml"
-        ))?;
+    map.insert("build.rs".into(), BUILD_RS);
+    map.insert("Cross_x86_64.toml".into(), CROSS_X86_64_TOML);
     UTILS_FILES
         .set(map)
-        .expect("Error initializing UTILS_FILES");
+        .map_err(|_| "Error initializing UTILS_FILES")?;
     Ok(())
 }
 
