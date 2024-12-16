@@ -52,7 +52,7 @@ pub fn x_compile(
     init_utils_files()?;
     let build_vars_formatted = format_build_vars_for_cross(build_vars)?;
     let bin_name = parse_package_name(crate_path.clone())?;
-    let tmp_path = tmp_dir.path().to_string_lossy();
+    let tmp_path = tmp_dir.path().to_string_lossy().to_string();
     info!("installing dependencies");
     let cmd0 = format!(
         "cargo install cross --git https://github.com/cross-rs/cross; cp  -r {} {}",
@@ -74,7 +74,7 @@ pub fn x_compile(
     }
 
     let cmd1 = cross_build_base_cmd(
-        crate_path.clone(),
+        tmp_path.clone(),
         engine,
         build_vars_formatted,
         target.clone(),
@@ -92,7 +92,7 @@ pub fn x_compile(
 
     let cmd3 = format!(
         "cp  {}/target/{}-unknown-linux-gnu/release/{}_{}.bin {}/{}_{}.bin",
-        crate_path, target, bin_name, target, out_dir, bin_name, target
+        tmp_path, target, bin_name, target, out_dir, bin_name, target
     );
     cmd.exec(cmd3)?;
 
