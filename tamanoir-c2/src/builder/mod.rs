@@ -3,7 +3,7 @@ pub mod utils;
 use std::{env, fs::File, io::Write, str::FromStr};
 
 use log::{info, log_enabled, Level};
-use tempfile::TempDir;
+use tempfile::{Builder, TempDir};
 use utils::{
     cross_build_base_cmd, format_build_vars_for_cross, init_utils_files, parse_package_name,
     UTILS_FILES,
@@ -21,7 +21,10 @@ pub fn build(
     let current_arch = env::consts::ARCH;
     let crate_path = crate_path;
     let should_x_compile = TargetArch::from_str(current_arch).unwrap() != target;
-    let tmp_dir = TempDir::new().map_err(|_| "Error creating temp dir")?;
+    let tmp_dir = Builder::new()
+        .prefix("tamanoir-rce")
+        .tempdir()
+        .map_err(|_| "Error creating temp dir")?;
     if should_x_compile {
         x_compile(
             engine,
