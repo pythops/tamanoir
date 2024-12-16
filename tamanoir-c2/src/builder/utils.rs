@@ -100,7 +100,7 @@ pub fn cross_build_base_cmd(
     build_vars_fmt: String,
     target: TargetArch,
 ) -> String {
-    format!("cd {} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={} CROSS_CONTAINER_OPTS=\"{}\"  cross build --target {}-unknown-linux-gnu --release",crate_path,engine,build_vars_fmt,target)
+    format!("cd {} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={} CROSS_CONTAINER_OPTS=\"{}\"  cross build --target {}-unknown-linux-gnu --release -v",crate_path,engine,build_vars_fmt,target)
 }
 
 pub fn clean(crate_path: String) -> Result<(), String> {
