@@ -85,6 +85,7 @@ pub fn x_compile(
         crate_path, target, bin_name, target, out_dir, bin_name, target
     );
     cmd.exec(cmd3)?;
+    clean(crate_path)?;
 
     Ok(())
 }
@@ -114,8 +115,6 @@ pub fn compile(crate_path: String, build_vars: String, out_dir: String) -> Resul
     );
     cmd.exec(cmd1)?;
     cmd.exec(cmd2)?;
-
-    clean(crate_path)?;
 
     Ok(())
 }
