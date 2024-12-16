@@ -5,10 +5,10 @@ use std::{env, fs::File, io::Write, str::FromStr};
 use log::info;
 use utils::{
     clean, cross_build_base_cmd, format_build_vars_for_cross, init_utils_files, parse_package_name,
-    Cmd, UTILS_FILES,
+    UTILS_FILES,
 };
 
-use crate::{Engine, TargetArch};
+use crate::{Cmd, Engine, TargetArch};
 
 pub fn build(
     crate_path: String,

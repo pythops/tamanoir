@@ -1,16 +1,13 @@
 use std::{
     collections::HashMap,
     fs,
-    io::{self, Write},
     path::{Path, PathBuf},
-    process::Command,
     sync::OnceLock,
 };
 
-use log::{info, log_enabled, Level};
-use serde::Deserialize;
+use log::info;
 
-use crate::{Engine, TargetArch};
+use crate::{CargoMetadata, Cmd, Engine, TargetArch};
 
 pub static UTILS_FILES: OnceLock<HashMap<String, &str>> = OnceLock::new();
 const BUILD_RS: &str = include_str!("../../x_build_utils/build.rs");
@@ -24,43 +21,6 @@ pub fn init_utils_files() -> Result<(), String> {
         .set(map)
         .map_err(|_| "Error initializing UTILS_FILES")?;
     Ok(())
-}
-
-pub struct Cmd {
-    pub shell: String,
-}
-
-impl Cmd {
-    pub fn exec(&self, cmd: String) -> Result<(), String> {
-        let mut program = Command::new(&self.shell);
-        let prog: &mut Command = program.arg("-c").arg(&cmd);
-
-        let output = prog
-            .output()
-            .map_err(|_| format!("Failed to run {}", cmd))?;
-        if log_enabled!(Level::Debug) {
-            io::stdout().write_all(&output.stdout).unwrap();
-            io::stderr().write_all(&output.stderr).unwrap();
-        }
-        if !output.status.success() {
-            return Err(format!(
-                "{} failed with status {}: {}",
-                cmd,
-                output.status,
-                String::from_utf8_lossy(&output.stderr)
-            ));
-        }
-        Ok(())
-    }
-}
-#[derive(Debug, Deserialize)]
-struct CargoMetadata {
-    package: Option<PackageMetadata>,
-}
-
-#[derive(Debug, Deserialize)]
-struct PackageMetadata {
-    name: String,
 }
 
 pub fn parse_package_name(crate_path: String) -> Result<String, String> {
