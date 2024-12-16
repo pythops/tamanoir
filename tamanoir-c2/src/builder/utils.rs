@@ -7,7 +7,7 @@ use std::{
     sync::OnceLock,
 };
 
-use log::info;
+use log::{info, log_enabled, Level};
 use serde::Deserialize;
 
 use crate::{Engine, TargetArch};
@@ -38,8 +38,10 @@ impl Cmd {
         let output = prog
             .output()
             .map_err(|_| format!("Failed to run {}", cmd))?;
-        io::stdout().write_all(&output.stdout).unwrap();
-        io::stderr().write_all(&output.stderr).unwrap();
+        if !log_enabled!(Level::Debug) {
+            io::stdout().write_all(&output.stdout).unwrap();
+            io::stderr().write_all(&output.stderr).unwrap();
+        }
         if !output.status.success() {
             return Err(format!(
                 "{} failed with status {}: {}",
