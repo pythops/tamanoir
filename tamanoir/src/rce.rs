@@ -1,7 +1,7 @@
 use std::{ptr, thread};
 
 use libc::{mmap, mprotect, MAP_ANONYMOUS, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
-use log::{debug, error, info};
+use log::{debug, error};
 
 #[no_mangle]
 pub fn execute(payload: &[u8]) -> Result<(), u32> {
