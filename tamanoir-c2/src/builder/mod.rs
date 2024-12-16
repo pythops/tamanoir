@@ -54,7 +54,7 @@ pub fn x_compile(
         let out_path = format!("{}/Cross.toml", crate_path);
         File::create(&out_path)
             .map_err(|_| format!("Couldn't create {}", &out_path))?
-            .write_all(cross_conf)
+            .write_all(cross_conf.as_bytes())
             .map_err(|_| format!("Couldn't create {}", &out_path))?;
     }
 
@@ -71,7 +71,7 @@ pub fn x_compile(
     let out_path = format!("{}/build.rs", crate_path);
     File::create(&out_path)
         .map_err(|_| format!("Couldn't create {}", &out_path))?
-        .write_all(post_build_script)
+        .write_all(post_build_script.as_bytes())
         .map_err(|_| format!("Couldn't create {}", &out_path))?;
     cmd.exec(cmd1)?;
 

@@ -11,12 +11,12 @@ use serde::Deserialize;
 
 use crate::{Engine, TargetArch};
 
-pub static UTILS_FILES: OnceLock<HashMap<String, &[u8]>> = OnceLock::new();
-const BUILD_RS: &[u8] = include_bytes!("../../x_build_utils/build.rs");
-const CROSS_X86_64_TOML: &[u8] = include_bytes!("../../x_build_utils/Cross_x86_64.toml");
+pub static UTILS_FILES: OnceLock<HashMap<String, &str>> = OnceLock::new();
+const BUILD_RS: &str = include_str!("../../x_build_utils/build.rs");
+const CROSS_X86_64_TOML: &str = include_str!("../../x_build_utils/Cross_x86_64.toml");
 
 pub fn init_utils_files() {
-    let mut map = HashMap::<String, &[u8]>::new();
+    let mut map = HashMap::<String, &str>::new();
 
     map.insert("build.rs".into(), BUILD_RS)
         .ok_or(format!("Error fetching {}", "x_build_utils / build.rs"))
