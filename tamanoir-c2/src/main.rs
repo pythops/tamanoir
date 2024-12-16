@@ -57,7 +57,8 @@ async fn main() -> anyhow::Result<()> {
             build_vars,
             out_dir,
         } => {
-            if let Err(_) = build(crate_path, engine, target_arch, build_vars, out_dir) {
+            if let Err(e) = build(crate_path, engine, target_arch, build_vars, out_dir) {
+                error!(e);
                 std::process::exit(1);
             }
         }
