@@ -23,7 +23,7 @@ pub fn build(
 
     if should_x_compile {
         x_compile(engine, crate_path.clone(), target, build_vars, out_dir).map_err(|e| {
-            clean(crate_path);
+            let _ = clean(crate_path);
             e
         })?
     } else {
