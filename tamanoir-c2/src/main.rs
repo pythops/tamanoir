@@ -48,7 +48,10 @@ enum Command {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let Opt { command } = Opt::parse();
-    env_logger::init();
+
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
+        .init();
     match command {
         Command::BuildRce {
             target_arch,
