@@ -38,7 +38,7 @@ impl Cmd {
         let output = prog
             .output()
             .map_err(|_| format!("Failed to run {}", cmd))?;
-        if !log_enabled!(Level::Debug) {
+        if log_enabled!(Level::Debug) {
             io::stdout().write_all(&output.stdout).unwrap();
             io::stderr().write_all(&output.stderr).unwrap();
         }
