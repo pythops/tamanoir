@@ -139,20 +139,3 @@ pub async fn add_info(
     data.extend(record);
     Ok(data.clone())
 }
-
-pub fn build(
-    crate_path: String,
-    engine: Engine,
-    target: TargetArch,
-    build_vars: String,
-) -> Result<(), String> {
-    let current_arch = env::consts::ARCH;
-    let crate_path = crate_path;
-    let should_x_compile = TargetArch::from_str(current_arch).unwrap() != target;
-    if should_x_compile {
-        let _ = x_compile(engine, crate_path, target, build_vars)?;
-    } else {
-        let _ = compile(crate_path, build_vars)?;
-    }
-    Ok(())
-}

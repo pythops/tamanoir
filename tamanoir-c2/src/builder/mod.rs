@@ -1,42 +1,47 @@
-pub mod commands;
+pub mod utils;
 
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use commands::{clean_cmd, cross_build_base_cmd, Cmd};
 use log::info;
-use serde::Deserialize;
+use utils::{
+    clean_cmd, cross_build_base_cmd, format_build_vars_for_cross, parse_package_name, Cmd,
+};
 
 use crate::{Engine, TargetArch};
 
-pub fn format_env_arg(s: &str) -> Result<String, String> {
-    if let Some(eq_pos) = s.find('=') {
-        let (key, value) = s.split_at(eq_pos);
-        if !key.is_empty() && !value.is_empty() {
-            return Err(format!("{} should follow key=value pattern", s));
-        } else {
-            return Ok(format!("--env {}={}", key.trim(), value.trim()));
-        }
+pub fn build(
+    crate_path: String,
+    engine: Engine,
+    target: TargetArch,
+    build_vars: String,
+    out_dir: String,
+) -> Result<(), String> {
+    let current_arch = env::consts::ARCH;
+    let crate_path = crate_path;
+    let should_x_compile = TargetArch::from_str(current_arch).unwrap() != target;
+    if should_x_compile {
+        let _ = x_compile(engine, crate_path, target, build_vars, out_dir)?;
+    } else {
+        let _ = compile(crate_path, build_vars, out_dir)?;
     }
-    Err(format!("{} should follow key=value pattern", s))
+    Ok(())
 }
-
 pub fn x_compile(
     engine: Engine,
     crate_path: String,
     target: TargetArch,
     build_vars: String,
+    out_dir: String,
 ) -> Result<(), String> {
     let cmd = Cmd {
         shell: "/bin/bash".into(),
     };
 
-    let build_vars: Result<Vec<_>, _> = build_vars.split_whitespace().map(format_env_arg).collect();
-    let build_vars_formatted = build_vars
-        .map_err(|e| format!("build_vars: {}", e))?
-        .join(" ");
+    let build_vars_formatted = format_build_vars_for_cross(build_vars)?;
     let bin_name = parse_package_name(crate_path.clone())?;
 
     info!("installing dependencies");
@@ -56,15 +61,15 @@ pub fn x_compile(
     cmd.exec(cmd2)?;
 
     let cmd3 = format!(
-        "cp  {}/target/{}-unknown-linux-gnu/release/{}_{}.bin ./src/bins/{}_{}.bin",
-        crate_path, target, bin_name, target, bin_name, target
+        "cp  {}/target/{}-unknown-linux-gnu/release/{}_{}.bin {}/{}_{}.bin",
+        crate_path, target, bin_name, target, out_dir, bin_name, target
     );
     cmd.exec(cmd3)?;
 
     Ok(())
 }
 
-pub fn compile(crate_path: String, build_vars: String) -> Result<(), String> {
+pub fn compile(crate_path: String, build_vars: String, out_dir: String) -> Result<(), String> {
     let bin_name = parse_package_name(crate_path.clone())?;
     let cmd = Cmd {
         shell: "/bin/bash".into(),
@@ -80,9 +85,10 @@ pub fn compile(crate_path: String, build_vars: String) -> Result<(), String> {
         crate_path, bin_name
     );
     let cmd2 = format!(
-        "objcopy -O binary {}/target/release/{} ./src/bins/{}_{}.bin",
+        "objcopy -O binary {}/target/release/{}  {}/{}_{}.bin",
         crate_path,
         bin_name,
+        out_dir,
         bin_name,
         env::consts::ARCH
     );
@@ -94,27 +100,4 @@ pub fn compile(crate_path: String, build_vars: String) -> Result<(), String> {
 
     cmd.exec(cmd3)?;
     Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-struct CargoMetadata {
-    package: Option<PackageMetadata>,
-}
-
-#[derive(Debug, Deserialize)]
-struct PackageMetadata {
-    name: String,
-}
-
-pub fn parse_package_name(crate_path: String) -> Result<String, String> {
-    let cargo_toml_path: PathBuf = Path::new(&crate_path).join("Cargo.toml");
-    let cargo_toml_content = fs::read_to_string(cargo_toml_path)
-        .expect(&format!("Failed to read {}/Cargo.toml", crate_path));
-    let metadata: CargoMetadata = toml::from_str(&cargo_toml_content)
-        .expect(&format!("Failed to parse {}/Cargo.toml", crate_path));
-    if let Some(package) = metadata.package {
-        Ok(package.name)
-    } else {
-        Err(format!("Failed to parse {}/Cargo.toml", crate_path))
-    }
 }

@@ -1,5 +1,5 @@
 set export
-set shell := "/bin/bash"
+
 _default:
     @just --list
 

