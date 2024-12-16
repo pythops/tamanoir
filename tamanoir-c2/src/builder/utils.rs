@@ -70,7 +70,7 @@ pub fn format_env_arg(s: &str) -> Result<String, String> {
 pub fn format_build_vars_for_cross(build_vars: String) -> Result<String, String> {
     let build_vars: Result<Vec<_>, _> = build_vars.split_whitespace().map(format_env_arg).collect();
     let build_vars_formatted = build_vars
-        .map_err(|e| format!("build_vars: {}", e))?
+        .map_err(|e| format!("--build-vars: {}", e))?
         .join(" ");
     Ok(build_vars_formatted)
 }
