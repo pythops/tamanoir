@@ -1,6 +1,6 @@
 pub mod utils;
 
-use std::str::FromStr;
+use std::{env, str::FromStr};
 
 use log::info;
 use utils::{
