@@ -1,8 +1,6 @@
 use std::{
     collections::HashMap,
-    env,
     net::{Ipv4Addr, SocketAddr},
-    str::FromStr,
     sync::Arc,
 };
 
@@ -11,9 +9,7 @@ use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
 
 use crate::{
-    builder::{compile, x_compile},
-    Engine, KeyMap, Layout, Session, TargetArch, AR_COUNT_OFFSET, AR_HEADER_LEN, FOOTER_LEN,
-    FOOTER_TXT, KEYMAPS,
+    KeyMap, Layout, Session, AR_COUNT_OFFSET, AR_HEADER_LEN, FOOTER_LEN, FOOTER_TXT, KEYMAPS,
 };
 
 pub fn max_payload_length(current_dns_packet_size: usize) -> usize {

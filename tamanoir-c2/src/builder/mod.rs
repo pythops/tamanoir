@@ -1,10 +1,6 @@
 pub mod utils;
 
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use log::info;
 use utils::{
