@@ -21,8 +21,8 @@ const FOOTER_TXT: &str = "r10n4m4t/";
 const FOOTER_EXTRA_BYTES: usize = 3;
 const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
 
-const HELLO_X86_64: &[u8] = include_bytes!("bins/hello_x86_64.bin");
-const REVERSE_SHELL_X86_64: &[u8] = include_bytes!("bins/reverse_shell_x86_64.bin");
+const HELLO_X86_64: &[u8] = include_bytes!("../bins/hello_x86_64.bin");
+const REVERSE_SHELL_X86_64: &[u8] = include_bytes!("../bins/reverse_shell_x86_64.bin");
 #[derive(Debug, Clone, PartialEq)]
 pub enum TargetArch {
     X86_64,
