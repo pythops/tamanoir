@@ -2,7 +2,7 @@ pub mod utils;
 
 use std::{env, fs::File, io::Write, str::FromStr};
 
-use log::info;
+use log::{info, log_enabled, Level};
 use utils::{
     clean, cross_build_base_cmd, format_build_vars_for_cross, init_utils_files, parse_package_name,
     UTILS_FILES,
@@ -41,6 +41,7 @@ pub fn x_compile(
 ) -> Result<(), String> {
     let cmd = Cmd {
         shell: "/bin/bash".into(),
+        stdout: log_enabled!(Level::Debug),
     };
     init_utils_files()?;
     let build_vars_formatted = format_build_vars_for_cross(build_vars)?;
@@ -94,6 +95,7 @@ pub fn compile(crate_path: String, build_vars: String, out_dir: String) -> Resul
     let bin_name = parse_package_name(crate_path.clone())?;
     let cmd = Cmd {
         shell: "/bin/bash".into(),
+        stdout: log_enabled!(Level::Debug),
     };
 
     info!("start  compilation of {}", bin_name);

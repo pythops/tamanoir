@@ -20,8 +20,9 @@ struct Opt {
 #[derive(Debug, Subcommand)]
 enum Command {
     #[clap(subcommand)]
+    #[command(about = "Build/test Remote Control Execution shell codes")]
     Rce(RceCommand),
-    // start the dns proxy / c2 server
+    #[command(about = "Start the dns proxy / c2 server")]
     Start {
         #[clap(short, long, default_value = "53")]
         port: u16,
@@ -38,32 +39,43 @@ enum Command {
 
 #[derive(Debug, Subcommand)]
 enum RceCommand {
-    // Build shell code payload for specified architecture
+    #[command(about = "Build shell code payload for specified architecture")]
     Build {
-        #[clap(long, default_value = "x86_64")]
+        #[clap(short,long, default_value = "x86_64",help=format!("Target architecture (supported are {:#?} )",TargetArch::ALL.into_iter().map(|t|t.to_string()).collect::<Vec<_>>()))]
         target_arch: TargetArch,
-        #[clap(short, long, default_value = "docker")]
+        #[clap(
+            short,
+            long,
+            default_value = "docker",
+            help = "cross build engine (docker and podman supported)"
+        )]
         engine: Engine,
-        #[clap(long, default_value = "")]
+        #[clap(
+            short,
+            long,
+            default_value = "",
+            help = "key=value, space-separated env vars required for your shellcode, if needed"
+        )]
         build_vars: String,
-        #[clap(long)]
+        #[clap(short, long)]
         crate_path: String,
-        #[clap(long)]
+        #[clap(short, long)]
         out_dir: String,
     },
-    // Build shell code payload for all available aritectures
+    #[command(about = "Build shell code payload for all available aritectures")]
     BuildAll {
         #[clap(short, long, default_value = "docker")]
         engine: Engine,
-        #[clap(long, default_value = "")]
+        #[clap(short, long, default_value = "")]
         build_vars: String,
-        #[clap(long)]
+        #[clap(short, long)]
         crate_path: String,
-        #[clap(long)]
+        #[clap(short, long)]
         out_dir: String,
     },
-    // Test a shellcode on current architecture
+    #[command(about = "Test a shellcode against current architecture")]
     Test {
+        #[clap(short, long)]
         bin_path: String,
     },
 }
@@ -88,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             RceCommand::Test { bin_path } => {
-                if let Err(e) = test_bin() {
+                if let Err(e) = test_bin(bin_path) {
                     error!("{}", e);
                     std::process::exit(1);
                 }

@@ -14,7 +14,6 @@ use std::{
     sync::OnceLock,
 };
 
-use log::{log_enabled, Level};
 use serde::Deserialize;
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
@@ -195,6 +194,7 @@ pub fn select_payload(rce: String, target_arch: TargetArch) -> Option<Vec<u8>> {
 }
 pub struct Cmd {
     pub shell: String,
+    pub stdout: bool,
 }
 
 impl Cmd {
@@ -205,7 +205,7 @@ impl Cmd {
         let output = prog
             .output()
             .map_err(|_| format!("Failed to run {}", cmd))?;
-        if log_enabled!(Level::Debug) {
+        if self.stdout {
             io::stdout().write_all(&output.stdout).unwrap();
             io::stderr().write_all(&output.stderr).unwrap();
         }

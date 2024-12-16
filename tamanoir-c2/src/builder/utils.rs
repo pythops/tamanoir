@@ -5,7 +5,7 @@ use std::{
     sync::OnceLock,
 };
 
-use log::info;
+use log::{info, log_enabled, Level};
 
 use crate::{CargoMetadata, Cmd, Engine, TargetArch};
 
@@ -71,6 +71,7 @@ pub fn clean(crate_path: String) -> Result<(), String> {
     );
     let cmd = Cmd {
         shell: "/bin/bash".into(),
+        stdout: log_enabled!(Level::Debug),
     };
     let cmd3 = clean_cmd;
     cmd.exec(cmd3)?;
