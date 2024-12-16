@@ -12,25 +12,21 @@ use serde::Deserialize;
 use crate::{Engine, TargetArch};
 
 pub static UTILS_FILES: OnceLock<HashMap<String, &[u8]>> = OnceLock::new();
+const BUILD_RS: &[u8] = include_bytes!("../../x_build_utils/build.rs");
+const CROSS_X86_64_TOML: &[u8] = include_bytes!("../../x_build_utils/Cross_x86_64.toml");
 
 pub fn init_utils_files() {
     let mut map = HashMap::<String, &[u8]>::new();
 
-    map.insert(
-        "build.rs".into(),
-        include_bytes!("../../x_build_utils/build.rs"),
-    )
-    .ok_or(format!("Error fetching {}", "x_build_utils / build.rs"))
-    .unwrap();
-    map.insert(
-        "Cross_x86_64.toml".into(),
-        include_bytes!("../../x_build_utils/Cross_x86_64.toml"),
-    )
-    .ok_or(format!(
-        "Error fetching {}",
-        "x_build_utils / Cross_x86_64.toml"
-    ))
-    .unwrap();
+    map.insert("build.rs".into(), BUILD_RS)
+        .ok_or(format!("Error fetching {}", "x_build_utils / build.rs"))
+        .unwrap();
+    map.insert("Cross_x86_64.toml".into(), CROSS_X86_64_TOML)
+        .ok_or(format!(
+            "Error fetching {}",
+            "x_build_utils / Cross_x86_64.toml"
+        ))
+        .unwrap();
     UTILS_FILES
         .set(map)
         .expect("Error initializing UTILS_FILES");

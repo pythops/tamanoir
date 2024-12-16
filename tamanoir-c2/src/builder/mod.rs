@@ -1,6 +1,6 @@
 pub mod utils;
 
-use std::{env, fs::File, io::Write, path::Path, str::FromStr};
+use std::{env, fs::File, io::Write, str::FromStr};
 
 use log::info;
 use utils::{
