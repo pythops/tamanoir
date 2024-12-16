@@ -4,8 +4,8 @@ use std::{env, fs::File, io::Write, str::FromStr};
 
 use log::info;
 use utils::{
-    clean, clean_cmd, cross_build_base_cmd, format_build_vars_for_cross, init_utils_files,
-    parse_package_name, Cmd, UTILS_FILES,
+    clean, cross_build_base_cmd, format_build_vars_for_cross, init_utils_files, parse_package_name,
+    Cmd, UTILS_FILES,
 };
 
 use crate::{Engine, TargetArch};
