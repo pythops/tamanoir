@@ -73,7 +73,7 @@ pub fn compile(crate_path: String, build_vars: String, out_dir: String) -> Resul
 
     info!("start  compilation of {}", bin_name);
     let cmd0 = format!("cd {} && {}  cargo build --release", crate_path, build_vars);
-    cmd.exec(cmd0).unwrap();
+    cmd.exec(cmd0)?;
 
     info!("start  post-build opertaions");
     let cmd1 = format!(
