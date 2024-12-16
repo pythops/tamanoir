@@ -7,6 +7,7 @@ use std::{
     sync::OnceLock,
 };
 
+use log::info;
 use serde::Deserialize;
 
 use crate::{Engine, TargetArch};
@@ -100,9 +101,16 @@ pub fn cross_build_base_cmd(
     format!("cd {} && CROSS_CONFIGCROSS_CONTAINER_ENGINE={} CROSS_CONTAINER_OPTS=\"{}\"  cross build --target {}-unknown-linux-gnu --release",crate_path,engine,build_vars_fmt,target)
 }
 
-pub fn clean_cmd(crate_path: String) -> String {
-    format!(
+pub fn clean(crate_path: String) -> Result<(), String> {
+    info!("cleaning");
+    let clean_cmd = format!(
         "rm -rf {}/target && rm -f {}/build.rs && rm -f {}/Cross.toml",
         crate_path, crate_path, crate_path
-    )
+    );
+    let cmd = Cmd {
+        shell: "/bin/bash".into(),
+    };
+    let cmd3 = clean_cmd;
+    cmd.exec(cmd3)?;
+    Ok(())
 }

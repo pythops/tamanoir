@@ -4,7 +4,7 @@ use std::{env, fs::File, io::Write, str::FromStr};
 
 use log::info;
 use utils::{
-    clean_cmd, cross_build_base_cmd, format_build_vars_for_cross, init_utils_files,
+    clean, clean_cmd, cross_build_base_cmd, format_build_vars_for_cross, init_utils_files,
     parse_package_name, Cmd, UTILS_FILES,
 };
 
@@ -20,11 +20,16 @@ pub fn build(
     let current_arch = env::consts::ARCH;
     let crate_path = crate_path;
     let should_x_compile = TargetArch::from_str(current_arch).unwrap() != target;
+
     if should_x_compile {
-        let _ = x_compile(engine, crate_path, target, build_vars, out_dir)?;
+        x_compile(engine, crate_path.clone(), target, build_vars, out_dir).map_err(|e| {
+            clean(crate_path);
+            e
+        })?
     } else {
-        let _ = compile(crate_path, build_vars, out_dir)?;
-    }
+        compile(crate_path, build_vars, out_dir)?
+    };
+
     Ok(())
 }
 pub fn x_compile(
@@ -110,9 +115,7 @@ pub fn compile(crate_path: String, build_vars: String, out_dir: String) -> Resul
     cmd.exec(cmd1)?;
     cmd.exec(cmd2)?;
 
-    info!("cleaning");
-    let cmd3 = clean_cmd(crate_path);
+    clean(crate_path)?;
 
-    cmd.exec(cmd3)?;
     Ok(())
 }
