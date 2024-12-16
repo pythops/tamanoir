@@ -58,7 +58,7 @@ pub fn x_compile(
     let tmp_path = tmp_dir.path().to_string_lossy().to_string();
     info!("installing dependencies");
     let cmd0 = format!(
-        "cargo install cross --git https://github.com/cross-rs/cross; cp  -r {}/* {}",
+        "cargo install cross --git https://github.com/cross-rs/cross; cp  -ar {}/* {}",
         crate_path, tmp_path
     );
     cmd.exec(cmd0)?;
@@ -117,7 +117,7 @@ pub fn compile(
     info!("start compilation of {}", bin_name);
     let tmp_path = tmp_dir.path().to_string_lossy();
     let cmd0 = format!(
-        "cp -r {}/* {} && cd {} && {}  cargo build --release",
+        "cp -ar {}/* {} && cd {} && {}  cargo build --release",
         crate_path, tmp_path, tmp_path, build_vars
     );
     cmd.exec(cmd0)?;
