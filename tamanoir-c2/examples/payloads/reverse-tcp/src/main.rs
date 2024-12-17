@@ -31,7 +31,7 @@ struct sockaddr_in {
 struct in_addr {
     s_addr: u32,
 }
-
+#[cfg(target_arch = "x86_64")]
 unsafe fn syscall2(syscall: usize, arg1: usize, arg2: usize) -> usize {
     let ret: usize;
     asm!(
@@ -46,7 +46,7 @@ unsafe fn syscall2(syscall: usize, arg1: usize, arg2: usize) -> usize {
     );
     ret
 }
-
+#[cfg(target_arch = "x86_64")]
 unsafe fn syscall3(syscall: usize, arg1: usize, arg2: usize, arg3: usize) -> usize {
     let ret: usize;
     asm!(
@@ -61,6 +61,55 @@ unsafe fn syscall3(syscall: usize, arg1: usize, arg2: usize, arg3: usize) -> usi
         options(nostack),
     );
     ret
+}
+
+#[cfg(target_arch = "aarch64")]
+unsafe fn syscall2(syscall: usize, arg1: usize, arg2: usize) -> usize {
+    let ret: usize;
+    asm!(
+        "svc #0",
+        in("x8") syscall,
+        in("x0") arg1,
+        in("x1") arg2,
+        lateout("x0") ret,
+        options(nostack)
+    );
+    ret
+}
+
+#[cfg(target_arch = "aarch64")]
+unsafe fn syscall3(syscall: usize, arg1: usize, arg2: usize, arg3: usize) -> usize {
+    let ret: usize;
+    asm!(
+        "svc #0",
+        in("x8") syscall,
+        in("x0") arg1,
+        in("x1") arg2,
+        in("x2") arg3,
+        lateout("x0") ret,
+        options(nostack)
+    );
+    ret
+}
+#[cfg(target_arch = "x86_64")]
+pub unsafe fn exit(ret: usize) -> ! {
+    let sys_nr: usize = 60;
+    asm!(
+    "syscall",
+    in("rax") sys_nr,
+    in("rdi") ret,
+    options(noreturn),
+    );
+}
+#[cfg(target_arch = "aarch64")]
+pub unsafe fn exit(ret: usize) -> ! {
+    let sys_nr: usize = 60;
+    asm!(
+    "svc #0",
+    in("x8") sys_nr,
+    in("x0") ret,
+    options(noreturn),
+    );
 }
 
 #[no_mangle]
@@ -96,9 +145,8 @@ fn _start() -> ! {
             argv.as_ptr() as usize,
             0,
         );
+        exit(0);
     };
-
-    loop {}
 }
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
