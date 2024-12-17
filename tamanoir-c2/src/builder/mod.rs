@@ -122,7 +122,7 @@ pub fn compile(
     );
     cmd.exec(cmd0)?;
 
-    info!("start post-build opertaions");
+    info!("start post-build operations");
     let cmd1 = format!(
         "strip -s --strip-unneeded {}/target/release/{}",
         tmp_path, bin_name

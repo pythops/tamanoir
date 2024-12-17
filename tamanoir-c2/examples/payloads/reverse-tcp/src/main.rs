@@ -1,6 +1,5 @@
 #![no_main]
 #![no_std]
-#![feature(addr_parse_ascii)]
 use core::arch::asm;
 
 const PORT: &str = core::env!("PORT");
