@@ -6,7 +6,7 @@ use aya::{
     EbpfLoader,
 };
 use clap::Parser;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
 use tamanoir::{rce::execute, ringbuf::RingBuffer};
 use tamanoir_common::{ContinuationByte, RceEvent};

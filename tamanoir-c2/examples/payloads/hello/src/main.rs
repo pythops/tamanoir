@@ -19,7 +19,7 @@ pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> isize {
 }
 
 #[cfg(target_arch = "x86_64")]
-pub unsafe fn exit(ret: usize) -> ! {
+pub unsafe fn exit(ret: isize) -> ! {
     let sys_nr: usize = 60;
     asm!(
     "syscall",
@@ -45,7 +45,7 @@ pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> isize {
 }
 
 #[cfg(target_arch = "aarch64")]
-pub unsafe fn exit(ret: usize) -> ! {
+pub unsafe fn exit(ret: isize) -> ! {
     let sys_nr: usize = 93;
     asm!(
     "svc #0",

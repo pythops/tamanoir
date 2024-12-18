@@ -77,6 +77,38 @@ unsafe fn syscall3(syscall: usize, arg1: usize, arg2: usize, arg3: usize) -> usi
     );
     ret
 }
+
+#[cfg(target_arch = "x86_64")]
+unsafe fn sys_dup3(arg1: usize, arg2: usize, arg3: isize) -> usize {
+    let ret: usize;
+    asm!(
+        "syscall",
+        in("rax") SYS_DUP3,
+        in("rdi") arg1,
+        in("rsi") arg2,
+        in("rdx") arg3,
+        out("rcx") _,
+        out("r11") _,
+        lateout("rax") ret,
+        options(nostack),
+    );
+    ret
+}
+#[cfg(target_arch = "aarch64")]
+unsafe fn sys_dup3(arg1: usize, arg2: usize, arg3: isize) -> usize {
+    let ret: usize;
+    asm!(
+        "svc #0",
+        in("x8") SYS_DUP3,
+        in("x0") arg1,
+        in("x1") arg2,
+        in("x2") arg3,
+        lateout("x0") ret,
+        options(nostack)
+    );
+    ret
+}
+
 #[cfg(target_arch = "x86_64")]
 pub unsafe fn exit(ret: usize) -> ! {
     asm!(
@@ -123,9 +155,9 @@ fn _start() -> ! {
             socket_addr_len as usize,
         );
 
-        syscall3(SYS_DUP3, socket_fd, STDIN, O_CLOCK_EXEC_FLAG);
-        syscall3(SYS_DUP3, socket_fd, STDOUT, O_CLOCK_EXEC_FLAG);
-        syscall3(SYS_DUP3, socket_fd, STDERR, O_CLOCK_EXEC_FLAG);
+        sys_dup3(socket_fd, STDIN, O_CLOCK_EXEC_FLAG);
+        sys_dup3(socket_fd, STDOUT, O_CLOCK_EXEC_FLAG);
+        sys_dup3(socket_fd, STDERR, O_CLOCK_EXEC_FLAG);
 
         syscall3(
             SYS_EXECVE,
