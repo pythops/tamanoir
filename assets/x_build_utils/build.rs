@@ -10,7 +10,6 @@ fn main() {
 
     let output = Command::new(format!("{}-linux-gnu-strip", target_arch))
         .arg("-s")
-        .arg("--strip-unneeded")
         .arg(&elf_path)
         .output()
         .expect("Failed to run strip");

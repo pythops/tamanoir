@@ -89,7 +89,7 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
 
                     info!(ctx, "payload is {} bytes long", payload_sz);
 
-                    let record_sz = AR_HEADER_SZ + payload_sz as usize + FOOTER_LEN;
+                    let record_sz = AR_HEADER_SZ + payload_sz + FOOTER_LEN;
                     let payload_buf = unsafe {
                         let ptr = DNS_PAYLOAD_BUFFER.get_ptr_mut(0).ok_or(-1)?;
                         &mut (*ptr).buf
@@ -131,8 +131,8 @@ fn tc_process_ingress(ctx: &mut TcContext) -> Result<i32, i64> {
                         );
                         submit(RceEvent {
                             prog: batch.try_into().map_err(|_| 0)?,
-                            event_type: continuation_byte.clone(),
-                            length: length,
+                            event_type: continuation_byte,
+                            length,
                             is_first_batch: is_first,
                             is_last_batch: is_last,
                         });

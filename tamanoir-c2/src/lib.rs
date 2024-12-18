@@ -1,7 +1,5 @@
-//pub mod builder;
-pub mod builder;
+pub mod cli;
 pub mod handlers;
-pub mod tester;
 
 use core::fmt;
 use std::{
@@ -24,7 +22,7 @@ const FOOTER_TXT: &str = "r10n4m4t/";
 const FOOTER_EXTRA_BYTES: usize = 3;
 const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
 
-const HELLO_X86_64: &[u8] = include_bytes!("../examples/bins/hello_x86_64.bin");
+const HELLO_X86_64: &[u8] = include_bytes!("../../assets/examples/bins/hello_x86_64.bin");
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TargetArch {
@@ -185,12 +183,11 @@ pub fn select_payload(rce: String, target_arch: TargetArch) -> Option<Vec<u8>> {
     if target_arch != TargetArch::X86_64 {
         return None;
     }
-    let payload = match &*rce {
+    match &*rce {
         "hello" => Some(HELLO_X86_64.to_vec()),
 
         _ => None,
-    };
-    payload
+    }
 }
 pub struct Cmd {
     pub shell: String,

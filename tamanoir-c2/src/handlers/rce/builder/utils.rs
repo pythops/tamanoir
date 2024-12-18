@@ -8,8 +8,9 @@ use std::{
 use crate::{CargoMetadata, Engine, TargetArch};
 
 pub static UTILS_FILES: OnceLock<HashMap<String, &str>> = OnceLock::new();
-const BUILD_RS: &str = include_str!("../../x_build_utils/build.rs");
-const CROSS_X86_64_TOML: &str = include_str!("../../x_build_utils/Cross_x86_64.toml");
+const BUILD_RS: &str = include_str!("../../../../../assets/x_build_utils/build.rs");
+const CROSS_X86_64_TOML: &str =
+    include_str!("../../../../../assets/x_build_utils/Cross_x86_64.toml");
 
 pub fn init_utils_files() -> Result<(), String> {
     let mut map = HashMap::<String, &str>::new();
@@ -24,9 +25,9 @@ pub fn init_utils_files() -> Result<(), String> {
 pub fn parse_package_name(crate_path: String) -> Result<String, String> {
     let cargo_toml_path: PathBuf = Path::new(&crate_path).join("Cargo.toml");
     let cargo_toml_content = fs::read_to_string(cargo_toml_path)
-        .expect(&format!("Failed to read {}/Cargo.toml", crate_path));
+        .unwrap_or_else(|_| panic!("Failed to read {}/Cargo.toml", crate_path));
     let metadata: CargoMetadata = toml::from_str(&cargo_toml_content)
-        .expect(&format!("Failed to parse {}/Cargo.toml", crate_path));
+        .unwrap_or_else(|_| panic!("Failed to parse {}/Cargo.toml", crate_path));
     if let Some(package) = metadata.package {
         Ok(package.name)
     } else {

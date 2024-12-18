@@ -19,7 +19,7 @@ pub fn build(
     out_dir: String,
 ) -> Result<(), String> {
     let current_arch = env::consts::ARCH;
-    let crate_path = crate_path;
+
     let should_x_compile = TargetArch::from_str(current_arch).unwrap() != target;
     let tmp_dir = Builder::new()
         .prefix("tamanoir-rce")

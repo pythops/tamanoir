@@ -21,11 +21,11 @@ pub fn init_keymaps() {
     let mut map = HashMap::<u8, KeyMap>::new();
     map.insert(
         Layout::Azerty as u8,
-        serde_yaml::from_str::<KeyMap>(include_str!("layouts/azerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(include_str!("../../../assets/layouts/azerty.yml")).unwrap(),
     );
     map.insert(
         Layout::Qwerty as u8,
-        serde_yaml::from_str::<KeyMap>(include_str!("layouts/qwerty.yml")).unwrap(),
+        serde_yaml::from_str::<KeyMap>(include_str!("../../../assets/layouts/qwerty.yml")).unwrap(),
     );
     KEYMAPS.set(map).expect("Error initializing KEYMAPS");
 }
