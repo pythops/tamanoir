@@ -4,7 +4,7 @@
 use core::arch::asm;
 
 #[cfg(target_arch = "x86_64")]
-pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> Result<usize, ()> {
+pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> isize {
     let sys_nr: usize = 1;
     let ret: isize;
     asm!(
@@ -15,10 +15,7 @@ pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> Result<usize, ()> 
     in("rdx") len,
     lateout("rax") ret,
     );
-    match ret {
-        -1 => Err(()),
-        _ => Ok(ret as usize),
-    }
+    ret
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -33,8 +30,8 @@ pub unsafe fn exit(ret: usize) -> ! {
 }
 
 #[cfg(target_arch = "aarch64")]
-pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> Result<usize, ()> {
-    let sys_nr: usize = 1;
+pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> isize {
+    let sys_nr: usize = 64;
     let ret: isize;
     asm!(
     "svc #0",
@@ -44,15 +41,12 @@ pub unsafe fn write(fd: usize, msg: *const u8, len: usize) -> Result<usize, ()> 
     in("x2") len,
     lateout("x0") ret,
     );
-    match ret {
-        -1 => Err(()),
-        _ => Ok(ret as usize),
-    }
+    ret
 }
 
 #[cfg(target_arch = "aarch64")]
 pub unsafe fn exit(ret: usize) -> ! {
-    let sys_nr: usize = 60;
+    let sys_nr: usize = 93;
     asm!(
     "svc #0",
     in("x8") sys_nr,

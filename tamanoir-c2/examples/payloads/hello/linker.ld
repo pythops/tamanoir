@@ -19,13 +19,13 @@ SECTIONS
         *(.rodata.*)
         *(.data)
     }
-
-    .debug :
-    {
-        *(.interp)
-        *(.comment)
-        *(.debug_frame)
+    /DISCARD/ :
+	{
+		*(.interp)
+		*(.comment)
+		*(.debug_frame)
         *(.ARM.exidx)
         *(.reginfo)
-    }
+	}
+
 }

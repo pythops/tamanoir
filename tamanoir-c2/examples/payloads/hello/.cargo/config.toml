@@ -8,4 +8,4 @@ rustflags = [ "-C", "link-arg=-nostdlib", "-C", "link-arg=-nostartfiles",
 
 [target.aarch64-unknown-linux-gnu]
 rustflags = [ "-C", "link-arg=-nostdlib","-C", "link-arg=-nostartfiles",
-             "-C", "link-arg=-Wl,-Tlinker.ld,--build-id=none"]
+             "-C", "link-arg=-Wl,-Tlinker.ld,--build-id=none", "-C", "link-arg=-static"]
