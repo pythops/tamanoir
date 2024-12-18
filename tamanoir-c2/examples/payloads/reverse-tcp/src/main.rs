@@ -31,7 +31,7 @@ const IPPROTO_IP: usize = 0;
 const STDIN: usize = 0;
 const STDOUT: usize = 1;
 const STDERR: usize = 2;
-const O_CLOCK_EXEC_FLAG: usize = 4194304;
+const O_CLOCK_EXEC_FLAG: isize = 4194304;
 
 #[repr(C)]
 struct sockaddr_in {
