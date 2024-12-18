@@ -124,7 +124,7 @@ pub unsafe fn exit(ret: usize) -> ! {
     "svc #0",
     in("x8") SYS_EXIT,
     in("x0") ret,
-    options(noreturn),4194304
+    options(noreturn),
     let mut res = (r[0] as u32) << 24;
     res |= (r[1] as u32) << 16;
     res |= (r[2] as u32) << 8;
