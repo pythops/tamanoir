@@ -1,4 +1,4 @@
-use std::{io, mem, os::fd::AsRawFd};
+use std::{io, os::fd::AsRawFd};
 
 use aya::{
     maps::{ring_buf::RingBufItem, MapData, RingBuf},
@@ -43,15 +43,4 @@ impl Source for RingBuffer<'_> {
     fn deregister(&mut self, registry: &Registry) -> io::Result<()> {
         SourceFd(&self.buffer.as_raw_fd()).deregister(registry)
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Rce {
-    pub prog: u8,
-    pub active: bool,
-}
-
-impl Rce {
-    pub const LEN: usize = mem::size_of::<Rce>();
 }

@@ -85,7 +85,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                         &(u16::from_be(header.tot_len) + KEYS_PAYLOAD_LEN as u16).to_be(),
                     )?;
 
-                    //make room
+                    // make room
                     debug!(ctx, "adjust room");
                     ctx.skb
                         .adjust_room(KEYS_PAYLOAD_LEN as i32, BPF_ADJ_ROOM_NET, 0)
@@ -102,7 +102,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                         &(u16::from_be(udp_hdr.len) + KEYS_PAYLOAD_LEN as u16).to_be(),
                     )?;
 
-                    //move dns payload
+                    // move dns payload
                     let buf = unsafe {
                         let ptr = DNS_BUFFER.get_ptr(0).ok_or(-1)?;
                         &(*ptr).buf
@@ -111,7 +111,7 @@ fn tc_process_egress(ctx: &mut TcContext) -> Result<i32, i64> {
                     store_bytes(ctx, DNS_QUERY_OFFSET, buf, 0)?;
                     inject_keys(ctx, DNS_QUERY_OFFSET + dns_payload_len, keys)?;
 
-                    //set current csum to 0
+                    // set current csum to 0
                     ctx.store(crate::common::UDP_CSUM_OFFSET, &0u16, 2)
                         .map_err(|_| {
                             error!(ctx, "error zeroing L4 csum");

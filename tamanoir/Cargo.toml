@@ -22,6 +22,10 @@ tokio = { workspace = true, features = [
   "signal",
 ] }
 mio = { version = "1", features = ["os-poll", "os-ext"] }
+tamanoir-common = { path = "../tamanoir-common" }
+
+
+
 
 [[bin]]
 name = "tamanoir"

