@@ -22,10 +22,6 @@ pub enum Command {
         dns_ip: Ipv4Addr,
         #[clap(long, default_value = "8")]
         payload_len: usize,
-        #[clap(long, default_value = "hello")]
-        rce: String,
-        #[clap(long, default_value = "x86_64")]
-        target_arch: TargetArch,
     },
 }
 

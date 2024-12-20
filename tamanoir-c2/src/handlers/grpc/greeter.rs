@@ -1,9 +1,8 @@
+use log::debug;
 use tamanoir::{greeter_server::Greeter, HelloReply, HelloRequest};
 use tonic::{Request, Response, Status};
 
-pub mod tamanoir {
-    tonic::include_proto!("tamanoir");
-}
+use super::tamanoir;
 
 #[derive(Default)]
 pub struct MyGreeter {}
@@ -14,7 +13,7 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        println!("Got a request from {:?}", request.remote_addr());
+        debug!("Got a request from {:?}", request.remote_addr());
 
         let reply = HelloReply {
             message: format!("Hello {}!", request.into_inner().name),
