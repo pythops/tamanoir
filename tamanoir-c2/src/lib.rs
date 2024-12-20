@@ -13,7 +13,12 @@ use std::{
 };
 
 use anyhow::Error;
+use handlers::{dns_proxy::DnsProxy, grpc::greeter::MyGreeter};
+use log::{debug, info};
 use serde::Deserialize;
+use tonic::transport::Server;
+
+use crate::handlers::grpc::tamanoir::greeter_server::GreeterServer;
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
 static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
@@ -244,4 +249,21 @@ struct CargoMetadata {
 #[derive(Debug, Deserialize)]
 struct PackageMetadata {
     name: String,
+}
+
+pub async fn serve_tonic() -> anyhow::Result<()> {
+    let addr = "[::1]:50051".parse().unwrap();
+    let greeter = MyGreeter::default();
+    info!("Starting grpc server");
+    debug!("Grpc server is listning on  [::1]:50051");
+    Server::builder()
+        .add_service(GreeterServer::new(greeter))
+        .serve(addr)
+        .await?;
+    Ok(())
+}
+pub async fn serve_proxy(port: u16, dns_ip: Ipv4Addr, payload_len: usize) -> anyhow::Result<()> {
+    info!("Starting dns proxy server");
+    DnsProxy::new(port, dns_ip, payload_len).serve().await?;
+    Ok(())
 }

@@ -157,7 +157,10 @@ impl DnsProxy {
         {
             init_keymaps();
             let sock = UdpSocket::bind(format!("0.0.0.0:{}", self.port)).await?;
-            info!("Proxy is listening on {}", format!("0.0.0.0:{}", self.port));
+            info!(
+                "DNS proxy is listening on {}",
+                format!("0.0.0.0:{}", self.port)
+            );
 
             let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
                 self.sessions.lock().await;

