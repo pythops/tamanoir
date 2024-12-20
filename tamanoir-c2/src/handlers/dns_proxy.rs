@@ -157,7 +157,7 @@ impl DnsProxy {
         {
             init_keymaps();
             let sock = UdpSocket::bind(format!("0.0.0.0:{}", self.port)).await?;
-            info!(
+            debug!(
                 "DNS proxy is listening on {}",
                 format!("0.0.0.0:{}", self.port)
             );
