@@ -2,10 +2,8 @@ use clap::Parser;
 use log::error;
 use tamanoir_c2::{
     cli::{Command, Opt, RceCommand},
-    handlers::{
-        dns_proxy::DnsProxy,
-        rce::{builder::build, tester::test_bin},
-    },
+    dns_proxy::DnsProxy,
+    rce::{builder::build, tester::test_bin},
     serve_tonic, SessionsStore, TargetArch,
 };
 

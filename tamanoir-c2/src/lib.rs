@@ -1,5 +1,9 @@
 pub mod cli;
-pub mod handlers;
+pub mod dns_proxy;
+pub mod rce;
+pub mod tamanoir_grpc {
+    tonic::include_proto!("tamanoir");
+}
 
 use core::fmt;
 use std::{
@@ -12,14 +16,12 @@ use std::{
     sync::Arc,
 };
 
-use handlers::grpc::greeter::MyGreeter;
 use log::{debug, info};
 use serde::Deserialize;
 use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
 
-use crate::handlers::grpc::tamanoir_grpc::{
-    greeter_server::GreeterServer,
+use crate::tamanoir_grpc::{
     proxy_server::{Proxy, ProxyServer},
     GetSessionsResponse, NoArgs, SessionResponse, SetSessionRceRequest,
 };
@@ -30,7 +32,6 @@ const AR_HEADER_LEN: usize = 12;
 const FOOTER_TXT: &str = "r10n4m4t/";
 const FOOTER_EXTRA_BYTES: usize = 3;
 const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
-
 const HELLO_X86_64: &[u8] = include_bytes!("../../assets/examples/bins/hello_x86_64.bin");
 
 #[derive(Debug, Clone, PartialEq)]
@@ -252,12 +253,10 @@ struct PackageMetadata {
 }
 pub async fn serve_tonic(sessions: SessionsStore) -> anyhow::Result<()> {
     let addr = "[::1]:50051".parse().unwrap();
-    let greeter = MyGreeter::default();
 
     info!("Starting grpc server");
     debug!("Grpc server is listning on  [::1]:50051");
     Server::builder()
-        .add_service(GreeterServer::new(greeter))
         .add_service(ProxyServer::new(sessions))
         .serve(addr)
         .await?;

@@ -3,8 +3,8 @@ use std::{collections::HashMap, sync::OnceLock};
 use crate::{KeyMap, Layout};
 
 pub static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
-const AZERTY: &str = include_str!("../../../../assets/layouts/azerty.yml");
-const QWERTY: &str = include_str!("../../../../assets/layouts/qwerty.yml");
+const AZERTY: &str = include_str!("../../../assets/layouts/azerty.yml");
+const QWERTY: &str = include_str!("../../../assets/layouts/qwerty.yml");
 
 pub fn init_keymaps() {
     let mut map = HashMap::<u8, KeyMap>::new();

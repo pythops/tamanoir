@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::OnceLock};
 
 pub static UTILS_FILES: OnceLock<HashMap<String, &str>> = OnceLock::new();
-const CARGO_TOML: &str = include_str!("../../../../../assets/rce-tester/Cargo.toml");
-const MAIN_RS: &str = include_str!("../../../../../assets/rce-tester/src/main.rs");
+const CARGO_TOML: &str = include_str!("../../../../assets/rce-tester/Cargo.toml");
+const MAIN_RS: &str = include_str!("../../../../assets/rce-tester/src/main.rs");
 
 pub fn init_utils_files() -> Result<(), String> {
     let mut map: HashMap<String, &str> = HashMap::<String, &str>::new();
