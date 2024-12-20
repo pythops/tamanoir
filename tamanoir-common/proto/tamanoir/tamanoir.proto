@@ -2,18 +2,34 @@ syntax = "proto3";
 
 package tamanoir;
 
-// The greeting service definition.
 service Greeter {
-  // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {}
 }
 
-// The request message containing the user's name.
 message HelloRequest {
   string name = 1;
 }
 
-// The response message containing the greetings
+
 message HelloReply {
   string message = 1;
+}
+
+message NoArgs {}
+
+
+
+message SessionsResponse {
+  repeated SessionResponse sessions = 1;
+}
+
+
+message SessionResponse {
+  string ip =1;
+  repeated uint32 key_codes=2; 
+
+}
+
+service Proxy {
+  rpc GetSessions (NoArgs) returns (SessionsResponse) {}
 }

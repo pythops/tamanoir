@@ -1,8 +1,8 @@
 use log::debug;
-use tamanoir::{greeter_server::Greeter, HelloReply, HelloRequest};
+use tamanoir_grpc::{greeter_server::Greeter, HelloReply, HelloRequest};
 use tonic::{Request, Response, Status};
 
-use super::tamanoir;
+use super::tamanoir_grpc;
 
 #[derive(Default)]
 pub struct MyGreeter {}

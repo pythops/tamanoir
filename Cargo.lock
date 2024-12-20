@@ -1310,6 +1310,7 @@ name = "tamanoir-common"
 version = "0.1.0"
 dependencies = [
  "prost-types",
+ "serde",
 ]
 
 [[package]]
