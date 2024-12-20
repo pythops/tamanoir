@@ -8,9 +8,8 @@ use std::{
 use crate::{CargoMetadata, Engine, TargetArch};
 
 pub static UTILS_FILES: OnceLock<HashMap<String, &str>> = OnceLock::new();
-const BUILD_RS: &str = include_str!("../../../../../assets/x_build_utils/build.rs");
-const CROSS_X86_64_TOML: &str =
-    include_str!("../../../../../assets/x_build_utils/Cross_x86_64.toml");
+const BUILD_RS: &str = include_str!("../../../../assets/x_build_utils/build.rs");
+const CROSS_X86_64_TOML: &str = include_str!("../../../../assets/x_build_utils/Cross_x86_64.toml");
 
 pub fn init_utils_files() -> Result<(), String> {
     let mut map = HashMap::<String, &str>::new();
