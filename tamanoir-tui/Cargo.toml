@@ -1,0 +1,12 @@
+[package]
+name = "tamanoir-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossterm = { version = "0.28", features = ["event-stream"] }
+futures = "0.3"
+ratatui = "0.29"
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }

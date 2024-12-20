@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["tamanoir", "tamanoir-ebpf", "tamanoir-c2","tamanoir-common"]
+members = [
+  "tamanoir",
+  "tamanoir-ebpf",
+  "tamanoir-c2",
+  "tamanoir-common",
+  "tamanoir-tui",
+]
 default-members = ["tamanoir"]
 
 [workspace.dependencies]
@@ -12,13 +18,16 @@ anyhow = { version = "1", default-features = false }
 env_logger = { version = "0.11", default-features = false }
 libc = { version = "0.2", default-features = false }
 log = { version = "0.4", default-features = false }
-tokio = { version = "1", default-features = false }
-
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", default-features = true, features = [
+  "derive",
+  "cargo",
+] }
 
 [profile.dev]
 panic = "abort"
-debug = true  # This is the default, but you can specify it explicitly
-opt-level = 0 
+debug = true    # This is the default, but you can specify it explicitly
+opt-level = 0
 
 [profile.release]
 panic = "abort"
