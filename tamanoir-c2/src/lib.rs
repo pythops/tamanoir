@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod grpc_server;
 pub mod handlers;
 
 use core::fmt;

