@@ -1,8 +1,5 @@
-use tamanoir::{
-    HelloReply, HelloRequest,
-    greeter_server::{Greeter, GreeterServer},
-};
-use tonic::{Request, Response, Status, transport::Server};
+use tamanoir::{greeter_server::Greeter, HelloReply, HelloRequest};
+use tonic::{Request, Response, Status};
 
 pub mod tamanoir {
     tonic::include_proto!("tamanoir");
